@@ -8,6 +8,7 @@ num_cities = 100
 f, phi = sym.var('f, phi')
 elasticity_substitution = sym.DeferredVector('theta')
 economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
+labor_supply = sym.DeferredVector('S')
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
