@@ -76,6 +76,11 @@ def relative_price_level(i, j):
     return price_level[i] / price_level[j]
 
 
+def resource_constraint(h):
+    """Nominal GDP in city h must equal nominal income in city h."""
+    return nominal_gdp[h] - labor_supply[h] * nominal_wage[h]
+
+
 def revenue(price, quantity):
     """Revenue from producing a certain quantity at a given price."""
     return price * quantity
