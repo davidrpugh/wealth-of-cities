@@ -2,10 +2,10 @@ import sympy as sym
 
 
 # define the number of cities
-num_cities = 10
+num_cities = 100
 
 # define parameters
-phi = sym.var('phi')
+f, phi = sym.var('f, phi')
 elasticity_substitution = sym.DeferredVector('theta')
 economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 
@@ -13,6 +13,16 @@ economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 nominal_gdp = sym.DeferredVector('Y')
 price_level = sym.DeferredVector('P')
 nominal_wage = sym.DeferredVector('W')
+
+
+def cost(quantity, h, j):
+    """Cost of a firm in city h to produce a given quantity of good j."""
+    return labor_demand(quantity, h, j) * nominal_wage[h]
+
+
+def labor_demand(quantity, h, j):
+    """Labor demand by a firm in city h to produce a given quantity of good j."""
+    return (quantity / labor_productivity(h, j)) + f
 
 
 def labor_productivity(h, j):
@@ -33,6 +43,11 @@ def mark_up(j):
 def optimal_price(h, j):
     """Optimal price of good j sold in city h."""
     return mark_up(j) * marginal_costs(h, j)
+
+
+def total_profits(h):
+    """Total profits for a firm in city h."""
+    return total_revenue(h) - total_cost(h)
 
 
 def quantity_demand(price, j):
@@ -65,12 +80,23 @@ def revenue(price, quantity):
     return price * quantity
 
 
+def total_cost(h):
+    """Total cost of production for a firm in city h."""
+    individual_costs = []
+    for j in range(num_cities):
+        p_star = optimal_price(h, j)
+        q_star = quantity_demand(p_star, j)
+        individual_costs.append(cost(q_star, h, j))
+
+    return sum(individual_costs)
+
+
 def total_revenue(h):
     """Total revenue for a firm producing in city h."""
     individual_revenues = []
     for j in range(num_cities):
         p_star = optimal_price(h, j)
-        q_star = quantity_demand(optimal_price(h, j), j)
+        q_star = quantity_demand(p_star, j)
         individual_revenues.append(revenue(p_star, q_star))
 
     return sum(individual_revenues)
