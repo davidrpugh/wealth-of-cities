@@ -14,11 +14,17 @@ labor_supply = sym.DeferredVector('S')
 nominal_gdp = sym.DeferredVector('Y')
 price_level = sym.DeferredVector('P')
 nominal_wage = sym.DeferredVector('W')
+number_firms = sym.DeferredVector('M')
 
 
 def cost(quantity, h, j):
     """Cost of a firm in city h to produce a given quantity of good j."""
     return labor_demand(quantity, h, j) * nominal_wage[h]
+
+
+def goods_market_cleaging(h):
+    """Exports must balance imports for city h."""
+    return total_exports(h) - total_imports(h)
 
 
 def labor_demand(quantity, h, j):
@@ -100,6 +106,28 @@ def total_cost(h):
         individual_costs.append(cost(q_star, h, j))
 
     return sum(individual_costs)
+
+
+def total_exports(h):
+    """Total exports of various goods from city h."""
+    individual_exports = []
+    for j in range(num_cities):
+        p_star = optimal_price(h, j)
+        q_star = quantity_demand(p_star, j)
+        individual_exports.append(number_firms[h] * revenue(p_star, q_star))
+
+    return sum(individual_exports)
+
+
+def total_imports(h):
+    """Total imports of various foods into city h."""
+    individual_imports = []
+    for j in range(num_cities):
+        p_star = optimal_price(j, h)
+        q_star = quantity_demand(p_star, h)
+        individual_imports.append(number_firms[j] * revenue(p_star, q_star))
+
+    return sum(individual_imports)
 
 
 def total_labor_demand(h):
