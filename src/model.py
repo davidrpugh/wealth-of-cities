@@ -1,3 +1,4 @@
+import numpy as np
 import sympy as sym
 
 
@@ -148,9 +149,11 @@ zero_profit_conditions = [total_profits(h) for h in range(num_cities)]
 labor_market_clearing_conditions = [labor_market_clearing(h) for h in range(num_cities)]
 goods_market_clearing_conditions = [goods_market_clearing(h) for h in range(num_cities)]
 
-equations = (resource_constraints + zero_profit_conditions +
-             labor_market_clearing_conditions + goods_market_clearing_conditions)
-equilibrium_system = sym.Matrix(equations)
+tmp_equilibrium_system = (resource_constraints +
+                          zero_profit_conditions +
+                          labor_market_clearing_conditions +
+                          goods_market_clearing_conditions)
+equilibrium_system = sym.Matrix(tmp_equilibrium_system)
 
 # compute the jacobian of the equilibrium system
 nominal_gdps = [nominal_gdp[h] for h in range(num_cities)]
@@ -160,3 +163,11 @@ num_firmss = [num_firms[h] for h in range(num_cities)]
 
 endog_vars = nominal_gdps + nominal_price_levels + nominal_wages + num_firmss
 equilibrium_jacobian = equilibrium_system.jacobian(endog_vars)
+
+
+numeric_equilibrium_system = sym.lambdify((nominal_gdp, price_level, nominal_wage, num_firms),
+                                          equilibrium_system,
+                                          modules=[{'ImmutableMatrix': np.array}, "numpy"])
+numeric_equilibrium_jacobian = sym.lambdify((nominal_gdp, price_level, nominal_wage, num_firms),
+                                            equilibrium_jacobian,
+                                            modules=[{'ImmutableMatrix': np.array}, "numpy"])
