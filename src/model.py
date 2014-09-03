@@ -26,6 +26,11 @@ def labor_demand(quantity, h, j):
     return (quantity / labor_productivity(h, j)) + f
 
 
+def labor_market_clearing(h):
+    """Labor market clearing condition for city h."""
+    return labor_supply[h] - total_labor_demand(h)
+
+
 def labor_productivity(h, j):
     """Productivity of labor in city h when producing good j."""
     return phi / economic_distance[h, j]
@@ -95,6 +100,17 @@ def total_cost(h):
         individual_costs.append(cost(q_star, h, j))
 
     return sum(individual_costs)
+
+
+def total_labor_demand(h):
+    """Total labor demand for a firm in city h."""
+    individual_labor_demands = []
+    for j in range(num_cities):
+        p_star = optimal_price(h, j)
+        q_star = quantity_demand(p_star, j)
+        individual_labor_demands.append(labor_demand(q_star, h, j))
+
+    return sum(individual_labor_demands)
 
 
 def total_revenue(h):
