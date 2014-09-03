@@ -22,7 +22,7 @@ def cost(quantity, h, j):
     return labor_demand(quantity, h, j) * nominal_wage[h]
 
 
-def goods_market_cleaging(h):
+def goods_market_clearing(h):
     """Exports must balance imports for city h."""
     return total_exports(h) - total_imports(h)
 
@@ -72,19 +72,9 @@ def real_gdp(i):
     return nominal_gdp[i] / price_level[i]
 
 
-def real_wage(i):
-    """Real wage in city i."""
-    return nominal_wage[i] / price_level[i]
-
-
 def relative_price(price, j):
     """Relative price of a good in city j."""
     return price / price_level[j]
-
-
-def relative_price_level(i, j):
-    """Relative price level between cities i and j."""
-    return price_level[i] / price_level[j]
 
 
 def resource_constraint(h):
