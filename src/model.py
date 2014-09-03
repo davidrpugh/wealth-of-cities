@@ -2,7 +2,7 @@ import sympy as sym
 
 
 # define the number of cities
-num_cities = 100
+num_cities = 2
 
 # define parameters
 f, phi = sym.var('f, phi')
@@ -14,7 +14,7 @@ labor_supply = sym.DeferredVector('S')
 nominal_gdp = sym.DeferredVector('Y')
 price_level = sym.DeferredVector('P')
 nominal_wage = sym.DeferredVector('W')
-number_firms = sym.DeferredVector('M')
+num_firms = sym.DeferredVector('M')
 
 
 def cost(quantity, h, j):
@@ -104,7 +104,7 @@ def total_exports(h):
     for j in range(num_cities):
         p_star = optimal_price(h, j)
         q_star = quantity_demand(p_star, j)
-        individual_exports.append(number_firms[h] * revenue(p_star, q_star))
+        individual_exports.append(num_firms[h] * revenue(p_star, q_star))
 
     return sum(individual_exports)
 
@@ -115,7 +115,7 @@ def total_imports(h):
     for j in range(num_cities):
         p_star = optimal_price(j, h)
         q_star = quantity_demand(p_star, h)
-        individual_imports.append(number_firms[j] * revenue(p_star, q_star))
+        individual_imports.append(num_firms[j] * revenue(p_star, q_star))
 
     return sum(individual_imports)
 
@@ -140,3 +140,23 @@ def total_revenue(h):
         individual_revenues.append(revenue(p_star, q_star))
 
     return sum(individual_revenues)
+
+
+# system of equations describing the equilibrium
+resource_constraints = [resource_constraint(h) for h in range(num_cities)]
+zero_profit_conditions = [total_profits(h) for h in range(num_cities)]
+labor_market_clearing_conditions = [labor_market_clearing(h) for h in range(num_cities)]
+goods_market_clearing_conditions = [goods_market_clearing(h) for h in range(num_cities)]
+
+equations = (resource_constraints + zero_profit_conditions +
+             labor_market_clearing_conditions + goods_market_clearing_conditions)
+equilibrium_system = sym.Matrix(equations)
+
+# compute the jacobian of the equilibrium system
+nominal_gdps = [nominal_gdp[h] for h in range(num_cities)]
+nominal_price_levels = [price_level[h] for h in range(num_cities)]
+nominal_wages = [nominal_wage[h] for h in range(num_cities)]
+num_firmss = [num_firms[h] for h in range(num_cities)]
+
+endog_vars = nominal_gdps + nominal_price_levels + nominal_wages + num_firmss
+equilibrium_jacobian = equilibrium_system.jacobian(endog_vars)
