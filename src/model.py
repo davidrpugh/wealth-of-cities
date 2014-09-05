@@ -127,7 +127,7 @@ def total_labor_demand(h):
     for j in range(num_cities):
         p_star = optimal_price(h, j)
         q_star = quantity_demand(p_star, j)
-        individual_labor_demands.append(labor_demand(q_star, h, j))
+        individual_labor_demands.append(num_firms[h] * labor_demand(q_star, h, j))
 
     return sum(individual_labor_demands)
 
@@ -165,9 +165,9 @@ endog_vars = nominal_gdps + nominal_price_levels + nominal_wages + num_firmss
 equilibrium_jacobian = equilibrium_system.jacobian(endog_vars)
 
 
-numeric_equilibrium_system = sym.lambdify((nominal_gdp, nominal_price_level, nominal_wage, num_firms),
+numeric_equilibrium_system = sym.lambdify((nominal_price_level, nominal_gdp, nominal_wage, num_firms),
                                           equilibrium_system,
                                           modules=[{'ImmutableMatrix': np.array}, "numpy"])
-numeric_equilibrium_jacobian = sym.lambdify((nominal_gdp, nominal_price_level, nominal_wage, num_firms),
+numeric_equilibrium_jacobian = sym.lambdify((nominal_price_level, nominal_gdp, nominal_wage, num_firms),
                                             equilibrium_jacobian,
                                             modules=[{'ImmutableMatrix': np.array}, "numpy"])
