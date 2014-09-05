@@ -3,17 +3,17 @@ import sympy as sym
 
 
 # define the number of cities
-num_cities = 2
+num_cities = 1
 
 # define parameters
 f, phi = sym.var('f, phi')
 elasticity_substitution = sym.DeferredVector('theta')
 economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
-labor_supply = sym.DeferredVector('S')
+total_labor_supply = sym.DeferredVector('S')
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
-price_level = sym.DeferredVector('P')
+nominal_price_level = sym.DeferredVector('P')
 nominal_wage = sym.DeferredVector('W')
 num_firms = sym.DeferredVector('M')
 
@@ -35,7 +35,7 @@ def labor_demand(quantity, h, j):
 
 def labor_market_clearing(h):
     """Labor market clearing condition for city h."""
-    return labor_supply[h] - total_labor_demand(h)
+    return total_labor_supply[h] - total_labor_demand(h)
 
 
 def labor_productivity(h, j):
@@ -70,17 +70,17 @@ def quantity_demand(price, j):
 
 def real_gdp(i):
     """Real gross domestic product of city i."""
-    return nominal_gdp[i] / price_level[i]
+    return nominal_gdp[i] / nominal_price_level[i]
 
 
 def relative_price(price, j):
     """Relative price of a good in city j."""
-    return price / price_level[j]
+    return price / nominal_price_level[j]
 
 
 def resource_constraint(h):
     """Nominal GDP in city h must equal nominal income in city h."""
-    return nominal_gdp[h] - labor_supply[h] * nominal_wage[h]
+    return nominal_gdp[h] - total_labor_supply[h] * nominal_wage[h]
 
 
 def revenue(price, quantity):
@@ -157,7 +157,7 @@ equilibrium_system = sym.Matrix(tmp_equilibrium_system)
 
 # compute the jacobian of the equilibrium system
 nominal_gdps = [nominal_gdp[h] for h in range(num_cities)]
-nominal_price_levels = [price_level[h] for h in range(num_cities)]
+nominal_price_levels = [nominal_price_level[h] for h in range(num_cities)]
 nominal_wages = [nominal_wage[h] for h in range(num_cities)]
 num_firmss = [num_firms[h] for h in range(num_cities)]
 
@@ -165,9 +165,9 @@ endog_vars = nominal_gdps + nominal_price_levels + nominal_wages + num_firmss
 equilibrium_jacobian = equilibrium_system.jacobian(endog_vars)
 
 
-numeric_equilibrium_system = sym.lambdify((nominal_gdp, price_level, nominal_wage, num_firms),
+numeric_equilibrium_system = sym.lambdify((nominal_gdp, nominal_price_level, nominal_wage, num_firms),
                                           equilibrium_system,
                                           modules=[{'ImmutableMatrix': np.array}, "numpy"])
-numeric_equilibrium_jacobian = sym.lambdify((nominal_gdp, price_level, nominal_wage, num_firms),
+numeric_equilibrium_jacobian = sym.lambdify((nominal_gdp, nominal_price_level, nominal_wage, num_firms),
                                             equilibrium_jacobian,
                                             modules=[{'ImmutableMatrix': np.array}, "numpy"])
