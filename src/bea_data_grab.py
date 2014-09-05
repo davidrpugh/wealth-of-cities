@@ -41,8 +41,9 @@ key_codes = ['POP_MI',     # Total MSA population
              ]
 
 
-def download_bea_data(base_url, api_key, key_codes, mesg=True):
+def download_bea_data(base_url, api_key, key_codes, mesg=False):
     """Downloads data from the BEA data API."""
+    # store the downloaded data as a list of DataFrame objects
     data_frames = []
 
     for key_code in key_codes:
@@ -63,7 +64,6 @@ def download_bea_data(base_url, api_key, key_codes, mesg=True):
 
         # store it as a Pandas DataFrame
         tmp_data = pd.DataFrame(tmp_data)
-
         data_frames.append(tmp_data)
 
         if mesg:
@@ -74,10 +74,23 @@ def download_bea_data(base_url, api_key, key_codes, mesg=True):
     # combine the data frames into a single master data frame...
     combined_data = pd.concat(data_frames)
 
-    # for some reason BEA now has duplicate entries for GeoName!
-    check_for_dups = ['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'NoteRef',
-                      'TimePeriod', 'UNIT_MULT']
-    bea_metro_data = combined_data.drop_duplicates(subset=check_for_dups)
+    return combined_data
 
-    # ...and then write it to a csv file again!
-    bea_metro_data.to_csv('../data/raw_bea_metro_data.csv')
+
+def clean_bea_data(raw_bea_data):
+    """Cleans the raw BEA data."""
+    check_for_dups = ['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'NoteRef',
+                      'TimePeriod', 'UNIT_MULT']  # BEA has duplicate GeoNames!
+    clean_data = raw_bea_data.drop_duplicates(subset=check_for_dups)
+
+    return clean_data
+
+
+def main():
+    raw_data = download_bea_data(BEA_BASE_URL, MY_API_KEY, key_codes)
+    clean_data = clean_bea_data(raw_data)
+    clean_data.to_csv('../data/raw_bea_metro_data.csv')
+
+
+if __name__ == '__main__':
+    main()
