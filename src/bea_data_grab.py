@@ -40,38 +40,44 @@ key_codes = ['POP_MI',     # Total MSA population
              'PROP_MI',    # Proprietors income
              ]
 
-data_frames = []
 
-for key_code in key_codes:
+def download_bea_data(base_url, api_key, key_codes, mesg=True):
+    """Downloads data from the BEA data API."""
+    data_frames = []
 
-    tmp_query = {'UserID': MY_API_KEY,
-                 'method': 'GetData',
-                 'datasetname': 'RegionalData',
-                 'KeyCode': key_code}
+    for key_code in key_codes:
 
-    # connect to the BEA data API
-    tmp_response = requests.get(url=BEA_BASE_URL, params=tmp_query)
+        tmp_query = {'UserID': api_key,
+                     'method': 'GetData',
+                     'datasetname': 'RegionalData',
+                     'KeyCode': key_code}
 
-    # load the JSON data as a Python dict
-    tmp_raw_data = json.loads(tmp_response.content)
+        # connect to the BEA data API
+        tmp_response = requests.get(url=base_url, params=tmp_query)
 
-    # key into the actual data
-    tmp_data = tmp_raw_data['BEAAPI']['Results']['Data']
+        # load the JSON data as a Python dict
+        tmp_raw_data = json.loads(tmp_response.content)
 
-    # store it as a Pandas DataFrame
-    tmp_data = pd.DataFrame(tmp_data)
+        # key into the actual data
+        tmp_data = tmp_raw_data['BEAAPI']['Results']['Data']
 
-    data_frames.append(tmp_data)
+        # store it as a Pandas DataFrame
+        tmp_data = pd.DataFrame(tmp_data)
 
-    print('Done grabbing the {} data!'.format(key_code))
+        data_frames.append(tmp_data)
 
-# combine the data frames into a single master data frame...
-combined_data = pd.concat(data_frames)
+        if mesg:
+            print('Done grabbing the {} data!'.format(key_code))
+        else:
+            pass
 
-# for some reason BEA now has duplicate entries for GeoName!
-check_for_dups = ['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'NoteRef',
-                  'TimePeriod', 'UNIT_MULT']
-bea_metro_data = combined_data.drop_duplicates(subset=check_for_dups)
+    # combine the data frames into a single master data frame...
+    combined_data = pd.concat(data_frames)
 
-# ...and then write it to a csv file again!
-bea_metro_data.to_csv('../data/raw_bea_metro_data.csv')
+    # for some reason BEA now has duplicate entries for GeoName!
+    check_for_dups = ['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'NoteRef',
+                      'TimePeriod', 'UNIT_MULT']
+    bea_metro_data = combined_data.drop_duplicates(subset=check_for_dups)
+
+    # ...and then write it to a csv file again!
+    bea_metro_data.to_csv('../data/raw_bea_metro_data.csv')
