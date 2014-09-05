@@ -148,13 +148,13 @@ equations = []
 endog_vars = []
 
 for h in range(num_cities):
-    equations += [resource_constraint(h) for h in range(num_cities)]
+    equations += [goods_market_clearing(h) for h in range(num_cities)]
     endog_vars += [nominal_price_level[h] for h in range(num_cities)]
     equations += [total_profits(h) for h in range(num_cities)]
     endog_vars += [nominal_gdp[h] for h in range(num_cities)]
     equations += [labor_market_clearing(h) for h in range(num_cities)]
     endog_vars += [nominal_wage[h] for h in range(num_cities)]
-    equations += [goods_market_clearing(h) for h in range(num_cities)]
+    equations += [resource_constraint(h) for h in range(num_cities)]
     endog_vars += [num_firms[h] for h in range(num_cities)]
 
 equilibrium_system = sym.Matrix(equations)
