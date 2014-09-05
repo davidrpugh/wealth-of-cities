@@ -143,31 +143,27 @@ def total_revenue(h):
     return sum(individual_revenues)
 
 
-# system of equations describing the equilibrium
-resource_constraints = [resource_constraint(h) for h in range(num_cities)]
-zero_profit_conditions = [total_profits(h) for h in range(num_cities)]
-labor_market_clearing_conditions = [labor_market_clearing(h) for h in range(num_cities)]
-goods_market_clearing_conditions = [goods_market_clearing(h) for h in range(num_cities)]
+# construct equilibrium system of non-linear equations (and its jacobian)
+equations = []
+endog_vars = []
 
-tmp_equilibrium_system = (resource_constraints +
-                          zero_profit_conditions +
-                          labor_market_clearing_conditions +
-                          goods_market_clearing_conditions)
-equilibrium_system = sym.Matrix(tmp_equilibrium_system)
+for h in range(num_cities):
+    equations += [resource_constraint(h) for h in range(num_cities)]
+    endog_vars += [nominal_price_level[h] for h in range(num_cities)]
+    equations += [total_profits(h) for h in range(num_cities)]
+    endog_vars += [nominal_gdp[h] for h in range(num_cities)]
+    equations += [labor_market_clearing(h) for h in range(num_cities)]
+    endog_vars += [nominal_wage[h] for h in range(num_cities)]
+    equations += [goods_market_clearing(h) for h in range(num_cities)]
+    endog_vars += [num_firms[h] for h in range(num_cities)]
 
-# compute the jacobian of the equilibrium system
-nominal_gdps = [nominal_gdp[h] for h in range(num_cities)]
-nominal_price_levels = [nominal_price_level[h] for h in range(num_cities)]
-nominal_wages = [nominal_wage[h] for h in range(num_cities)]
-num_firmss = [num_firms[h] for h in range(num_cities)]
-
-endog_vars = nominal_gdps + nominal_price_levels + nominal_wages + num_firmss
+equilibrium_system = sym.Matrix(equations)
 equilibrium_jacobian = equilibrium_system.jacobian(endog_vars)
 
 
-numeric_equilibrium_system = sym.lambdify((nominal_price_level, nominal_gdp, nominal_wage, num_firms),
-                                          equilibrium_system,
+# wrap the symbolic equilibrium system and jacobian
+args = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
+numeric_equilibrium_system = sym.lambdify(args, equilibrium_system,
                                           modules=[{'ImmutableMatrix': np.array}, "numpy"])
-numeric_equilibrium_jacobian = sym.lambdify((nominal_price_level, nominal_gdp, nominal_wage, num_firms),
-                                            equilibrium_jacobian,
+numeric_equilibrium_jacobian = sym.lambdify(args, equilibrium_jacobian,
                                             modules=[{'ImmutableMatrix': np.array}, "numpy"])
