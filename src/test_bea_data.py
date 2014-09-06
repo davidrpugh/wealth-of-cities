@@ -19,11 +19,6 @@ class TestBEADownload(unittest.TestCase):
 
     api_key = '6F508DBE-6979-4E85-A335-8DAE6187FC0D'
 
-    # we are interested in grabbing the following data series:
-    key_codes = ['POP_MI', 'GDP_MP', 'RGDP_MP', 'PCRGDP_MP', 'TPI_MI',
-                 'PCPI_MI', 'DIR_MI', 'PCTR_MI', 'WS_MI', 'SUPP_MI',
-                 'PROP_MI']
-
     def setUp(self):
         """Setup test fixtures."""
         # remove files (if they already exist)
@@ -36,20 +31,29 @@ class TestBEADownload(unittest.TestCase):
         """Teardown test fixtures."""
         self.setUp()
 
-    def test_download_bea_data(self):
-        """Test BEA data download."""
-        raw_bea_data = bea_data_grab.download_bea_data(self.base_url,
-                                                       self.api_key,
-                                                       self.key_codes)
+    def test_download_data_series(self):
+        """Testing BEA data download."""
+        key_code = 'POP_MI'
+        raw_bea_data = bea_data_grab.download_data_series(self.base_url,
+                                                          self.api_key,
+                                                          key_code)
 
-        # raw_bea_data should be a DataFrame
+        # test raw_bea_data should be a DataFrame
         self.assertIsInstance(raw_bea_data, pd.DataFrame)
 
-        # raw_bea_data should have all the necessary columns
-        actual_variables = set(raw_bea_data['Code'].unique())
-        expected_variables = set(self.key_codes)
+        # test raw_bea_data has correct data
+        actual_variables = raw_bea_data['Code'].unique()
+        expected_variables = key_code
         self.assertTrue(actual_variables, expected_variables)
 
-    def test_clean_bea_data(self):
-        """Test cleaning of the bea data."""
+    def test_remove_duplicate_rows(self):
+        """Test removal of duplicate rows from raw BEA data."""
+        #raw_bea_data = bea_data_grab.download_bea_data(self.base_url,
+        #                                               self.api_key,
+        #                                               self.key_codes)
+
+        #check_for_dups = ['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'NoteRef',
+        #                  'TimePeriod', 'UNIT_MULT']
+        #deduplicated_data = bea_data_grab.remove_duplicate_rows(raw_bea_data)
+        #self.assertFalse(deduplicated_data.duplicated(check_for_dups).all())
         pass

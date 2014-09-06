@@ -27,7 +27,7 @@ def download_bea_data(base_url, api_key, key_codes, mesg=False):
 
     for key_code in key_codes:
 
-        tmp_data = _download_data_series(base_url, api_key, key_code)
+        tmp_data = download_data_series(base_url, api_key, key_code)
         data_frames.append(tmp_data)
 
         if mesg:
@@ -41,7 +41,7 @@ def download_bea_data(base_url, api_key, key_codes, mesg=False):
     return combined_data
 
 
-def _download_data_series(base_url, api_key, key_code):
+def download_data_series(base_url, api_key, key_code):
     """Download specific data series from the BEA data API."""
     tmp_query = {'UserID': api_key,
                  'method': 'GetData',
