@@ -23,41 +23,37 @@ import requests
 
 def download_bea_data(base_url, api_key, key_codes, mesg=False):
     """Downloads data from the BEA data API."""
-    # store the downloaded data as a list of DataFrame objects
     data_frames = []
 
     for key_code in key_codes:
 
-        tmp_query = {'UserID': api_key,
-                     'method': 'GetData',
-                     'datasetname': 'RegionalData',
-                     'KeyCode': key_code}
-
-        # connect to the BEA data API
-        tmp_response = requests.get(url=base_url, params=tmp_query)
-
-        # load the JSON data as a Python dict
-        tmp_raw_data = json.loads(tmp_response.content)
-
-        # key into the actual data
-        tmp_data = tmp_raw_data['BEAAPI']['Results']['Data']
-
-        # store it as a Pandas DataFrame
-        tmp_data = pd.DataFrame(tmp_data)
+        tmp_data = _download_data_series(base_url, api_key, key_code)
         data_frames.append(tmp_data)
-
-        # close the connection?
-        tmp_response.connection.close()
 
         if mesg:
             print('Done grabbing the {} data!'.format(key_code))
         else:
             pass
 
-    # combine the data frames into a single master data frame...
+    # combine the data frames into a single DataFrame
     combined_data = pd.concat(data_frames)
 
     return combined_data
+
+
+def _download_data_series(base_url, api_key, key_code):
+    """Download specific data series from the BEA data API."""
+    tmp_query = {'UserID': api_key,
+                 'method': 'GetData',
+                 'datasetname': 'RegionalData',
+                 'KeyCode': key_code}
+
+    tmp_response = requests.get(url=base_url, params=tmp_query)
+    tmp_raw_data = json.loads(tmp_response.content)
+    tmp_data = tmp_raw_data['BEAAPI']['Results']['Data']
+    tmp_data = pd.DataFrame(tmp_data)
+
+    return tmp_data
 
 
 def remove_duplicate_rows(raw_bea_data):
