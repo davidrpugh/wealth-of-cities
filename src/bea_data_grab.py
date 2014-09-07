@@ -16,52 +16,111 @@ Micropolitan Statistical Area data be made available as soon as possible.
 @date : 2014-09-03
 
 """
-import pandas as pd
+import glob
 import json
+import numpy as np
+import pandas as pd
 import requests
 
 
-def download_bea_data(base_url, api_key, key_codes, mesg=False):
-    """Downloads data from the BEA data API."""
-    data_frames = []
-
-    for key_code in key_codes:
-
-        tmp_data = download_data_series(base_url, api_key, key_code)
-        data_frames.append(tmp_data)
-
-        if mesg:
-            print('Done grabbing the {} data!'.format(key_code))
-        else:
-            pass
-
-    # combine the data frames into a single DataFrame
-    combined_data = pd.concat(data_frames)
-
-    return combined_data
+def clean_dataframe(df):
+    """Clean the combined BEA combined DataFrame."""
+    remove_duplicate_rows(df)
+    remove_unused_cols(df)
 
 
-def download_data_series(base_url, api_key, key_code):
-    """Download specific data series from the BEA data API."""
+def combine_json_files_to_dataframe(json_files):
+    """Combines the raw BEA json files into a single Pandas DataFrame."""
+    dfs = []
+    for json_file in json_files:
+        tmp_df = json_file_to_dataframe(json_file)
+        dfs.append(tmp_df)
+
+    combined_df = pd.concat(dfs)
+    return combined_df
+
+
+def create_new_variables(panel):
+    """Create some additional variables of interest."""
+
+    # per capita nominal GDP (thousands of USD)
+    panel['PCGDP_MP'] = panel['GDP_MP'] / panel['POP_MI']
+
+    # per capita wages (thousands of USD)
+    panel['PCWS_MI'] = panel['WS_MI'] / panel['POP_MI']
+
+    # total employee compensation including pensions, etc (billions of USD)
+    panel['COE_MI'] = panel['WS_MI'] + panel['SUPP_MI']
+
+    # per capita employee compensation (thousands of USD)
+    panel['PCCOE_MI'] = panel['COE_MI'] / panel['POP_MI']
+
+    # per capita dividends, interest, and rent (thousands of USD)
+    panel['PCDIR_MI'] = panel['DIR_MI'] / panel['POP_MI']
+
+
+def dataframe_to_panel(df):
+    """Convert BEA combined DataFrame to Pandas Panel object."""
+    hierarchical_df = df.set_index(['Code', 'TimePeriod', 'GeoFips'])
+    unstacked_df = hierarchical_df .DataValue.unstack('Code')
+    panel = unstacked_df.to_panel()
+    return panel
+
+
+def download_raw_json_data(base_url, api_key, key_code):
+    """Download raw JSON data for given key_code from the BEA data API."""
     tmp_query = {'UserID': api_key,
                  'method': 'GetData',
                  'datasetname': 'RegionalData',
                  'KeyCode': key_code}
-
     tmp_response = requests.get(url=base_url, params=tmp_query)
-    tmp_raw_data = json.loads(tmp_response.content)
-    tmp_data = tmp_raw_data['BEAAPI']['Results']['Data']
-    tmp_data = pd.DataFrame(tmp_data)
 
+    with open(key_code + '.json', 'w') as tmp_file:
+        tmp_file.write(tmp_response.content)
+
+
+def json_file_to_dataframe(json_file):
+    """Load raw BEA JSON file and convert to a Pandas DataFrame."""
+    raw_json_data = json.load(open(json_file))
+    tmp_json_data = raw_json_data['BEAAPI']['Results']['Data']
+    tmp_data = pd.DataFrame(tmp_json_data, dtype=np.int64)
     return tmp_data
 
 
-def remove_duplicate_rows(raw_bea_data):
-    """Removes duplicate data entries."""
-    check_for_dups = ['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'NoteRef',
-                      'TimePeriod', 'UNIT_MULT']  # BEA has duplicate GeoNames!
-    clean_data = raw_bea_data.drop_duplicates(subset=check_for_dups)
-    return clean_data
+def remove_duplicate_rows(df):
+    """Remove duplicate rows from the BEA combined BEA DataFrame."""
+    check_for_dups = ['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'TimePeriod',
+                      'UNIT_MULT']  # BEA has duplicate GeoNames!
+    df.drop_duplicates(subset=check_for_dups, inplace=True)
+
+
+def remove_unused_cols(df):
+    """Remove unused columns from the BEA combined BEA DataFrame."""
+    # incorporate the unit multiplier before dropping UNIT_MULT!
+    df.loc[:, 'DataValue'] = df['DataValue'] * 10**df['UNIT_MULT']
+    df.drop(['NoteRef', 'UNIT_MULT'], axis=1, inplace=True)
+
+
+def rescale_variables(panel):
+    """Rescale variables to units more appropriate for numerical work."""
+    # default BEA unit is USD, the natural unit is billions of USD
+    to_billions_USD = ['DIR_MI', 'GDP_MP', 'PCTR_MI', 'PROP_MI', 'RGDP_MP',
+                       'SUPP_MI', 'TPI_MI', 'WS_MI']
+    # default BEA unit is persons, the natural unit is millions of persons
+    to_millions_persons = ['POP_MI']
+
+    # default BEA unit is USD, the natural unit is thousands of USD
+    to_thousands_USD = ['PCPI_MI', 'PCRGDP_MP']
+
+    for item in panel.items:
+        if item in to_billions_USD:
+            panel[item] /= 1e9
+        elif item in to_millions_persons:
+            panel[item] /= 1e6
+        elif item in to_thousands_USD:
+            panel[item] /= 1e3
+        else:
+            pass
 
 
 def main():
@@ -85,13 +144,30 @@ def main():
                  'PROP_MI',    # Proprietors income
                  ]
 
-    raw_data = download_bea_data(BEA_BASE_URL, MY_API_KEY, key_codes, True)
-    clean_data = remove_duplicate_rows(raw_data)
+    # grab the raw BEA data
+    for key_code in key_codes:
+        download_raw_json_data(BEA_BASE_URL, MY_API_KEY, key_code)
+
+    # combine into a data frame
+    json_files = glob.glob('*.json')
+    combined_df = combine_json_files_to_dataframe(json_files)
+
+    # clean the combined dataframe (mdone inplace!)
+    clean_dataframe(combined_df)
+
+    # convert to panel data object
+    panel = dataframe_to_panel(combined_df)
+
+    # rescale old variables and create new ones (done inplace!)
+    rescale_variables(panel)
+    create_new_variables(panel)
+
+    return panel
+
 
     # save to disk
-    clean_data.to_csv('../data/raw_bea_metro_data.csv')
+    #clean_data.to_csv('../data/raw_bea_metro_data.csv')
 
-    return clean_data
 
 if __name__ == '__main__':
-    bea_metro_data = main()
+    df = main()
