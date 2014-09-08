@@ -5,6 +5,7 @@ author : David R. Pugh
 date : 2014-09-06
 
 """
+import glob
 import os
 import unittest
 
@@ -21,8 +22,8 @@ class TestBEADownload(unittest.TestCase):
 
     def setUp(self):
         """Setup test fixtures."""
-        # remove files (if they already exist)
-        files = ['../data/raw_bea_metro_data.csv']
+        # remove data files (if necessary)
+        files = glob.glob('../data/bea/*.json')
         for tmp_file in files:
             if os.path.isfile(tmp_file):
                 os.remove(tmp_file)
@@ -31,20 +32,14 @@ class TestBEADownload(unittest.TestCase):
         """Teardown test fixtures."""
         self.setUp()
 
-    def test_download_data_series(self):
+    def test_download_raw_json_data(self):
         """Testing BEA data download."""
         key_code = 'POP_MI'
-        raw_bea_data = bea_data_grab.download_data_series(self.base_url,
-                                                          self.api_key,
-                                                          key_code)
+        bea_data_grab.download_raw_json_data(self.base_url,
+                                             self.api_key,
+                                             key_code)
 
-        # test raw_bea_data should be a DataFrame
-        self.assertIsInstance(raw_bea_data, pd.DataFrame)
-
-        # test raw_bea_data has correct data
-        actual_variables = raw_bea_data['Code'].unique()
-        expected_variables = key_code
-        self.assertTrue(actual_variables, expected_variables)
+        self.assertTrue(os.path.isfile('../data/bea/' + key_code + '.json'))
 
     def test_remove_duplicate_rows(self):
         """Test removal of duplicate rows from raw BEA data."""

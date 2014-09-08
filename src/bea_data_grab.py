@@ -67,7 +67,7 @@ def dataframe_to_panel(df):
     return panel
 
 
-def download_raw_json_data(base_url, api_key, key_code):
+def download_raw_json_data(path, base_url, api_key, key_code):
     """Download raw JSON data for given key_code from the BEA data API."""
     tmp_query = {'UserID': api_key,
                  'method': 'GetData',
@@ -75,7 +75,7 @@ def download_raw_json_data(base_url, api_key, key_code):
                  'KeyCode': key_code}
     tmp_response = requests.get(url=base_url, params=tmp_query)
 
-    with open(key_code + '.json', 'w') as tmp_file:
+    with open(path + key_code + '.json', 'w') as tmp_file:
         tmp_file.write(tmp_response.content)
 
 
@@ -146,14 +146,17 @@ def main():
 
     # grab the raw BEA data
     for key_code in key_codes:
-        download_raw_json_data(BEA_BASE_URL, MY_API_KEY, key_code)
+        download_raw_json_data('../data/', BEA_BASE_URL, MY_API_KEY, key_code)
 
     # combine into a data frame
     json_files = glob.glob('*.json')
     combined_df = combine_json_files_to_dataframe(json_files)
 
-    # clean the combined dataframe (mdone inplace!)
+    # clean the combined dataframe (done inplace!)
     clean_dataframe(combined_df)
+
+    # save to disk
+    clean_dataframe.to_csv('../raw_bea_metro_data.csv')
 
     # convert to panel data object
     panel = dataframe_to_panel(combined_df)
@@ -163,10 +166,6 @@ def main():
     create_new_variables(panel)
 
     return panel
-
-
-    # save to disk
-    #clean_data.to_csv('../data/raw_bea_metro_data.csv')
 
 
 if __name__ == '__main__':
