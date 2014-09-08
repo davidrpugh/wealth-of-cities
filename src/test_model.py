@@ -21,6 +21,6 @@ eqn2 = S - (M / phi) * (theta / (theta - 1)) * ((theta / (theta - 1)) * (1 / phi
 # compute analytic solution (returns a list of dicts) and extract variables
 soln, = sym.solve([eqn0, eqn1, eqn2], Y, W, M, dict=True)
 
-analytic_nominal_gdp = soln['Y']
-analytic_nominal_wage = soln['W']
-analytic_num_firms = soln['M']
+analytic_nominal_gdp = soln[Y]
+analytic_nominal_wage = soln[W]
+analytic_num_firms = soln[M]
