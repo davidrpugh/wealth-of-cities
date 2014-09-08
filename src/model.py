@@ -162,7 +162,9 @@ equilibrium_jacobian = equilibrium_system.jacobian(endog_vars)
 
 
 # wrap the symbolic equilibrium system and jacobian
-args = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
+vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
+params = (f, phi, elasticity_substitution)
+args = vector_vars + params
 numeric_equilibrium_system = sym.lambdify(args, equilibrium_system,
                                           modules=[{'ImmutableMatrix': np.array}, "numpy"])
 numeric_equilibrium_jacobian = sym.lambdify(args, equilibrium_jacobian,
