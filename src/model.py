@@ -8,7 +8,8 @@ num_cities = 1
 # define parameters
 f, phi = sym.var('f, phi')
 elasticity_substitution = sym.DeferredVector('theta')
-economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
+# economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
+economic_distance = np.ones((num_cities, num_cities))
 total_labor_supply = sym.DeferredVector('S')
 
 # define variables
