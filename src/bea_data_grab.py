@@ -146,17 +146,17 @@ def main():
 
     # grab the raw BEA data
     for key_code in key_codes:
-        download_raw_json_data('../data/', BEA_BASE_URL, MY_API_KEY, key_code)
+        download_raw_json_data('../data/bea/', BEA_BASE_URL, MY_API_KEY, key_code)
 
     # combine into a data frame
-    json_files = glob.glob('*.json')
+    json_files = glob.glob('../data/bea/*.json')
     combined_df = combine_json_files_to_dataframe(json_files)
 
     # clean the combined dataframe (done inplace!)
     clean_dataframe(combined_df)
 
     # save to disk
-    clean_dataframe.to_csv('../raw_bea_metro_data.csv')
+    combined_df.to_csv('../data/bea/raw_bea_metro_data.csv')
 
     # convert to panel data object
     panel = dataframe_to_panel(combined_df)
@@ -169,4 +169,4 @@ def main():
 
 
 if __name__ == '__main__':
-    df = main()
+    panel = main()
