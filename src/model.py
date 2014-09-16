@@ -1,3 +1,11 @@
+"""
+Code for generating the symbolic equations which define the equilibirum of our
+model.
+
+@author : David R. Pugh
+@date : 2014-09-15
+
+"""
 import numpy as np
 import sympy as sym
 
@@ -19,19 +27,9 @@ nominal_wage = sym.DeferredVector('W')
 num_firms = sym.DeferredVector('M')
 
 
-def cost(quantity, h, j):
-    """Cost of a firm in city h to produce a given quantity of good j."""
-    return labor_demand(quantity, h, j) * nominal_wage[h]
-
-
 def goods_market_clearing(h):
     """Exports must balance imports for city h."""
     return total_exports(h) - total_imports(h)
-
-
-def labor_demand(quantity, h, j):
-    """Labor demand by a firm in city h to produce a given quantity of good j."""
-    return (quantity / labor_productivity(h, j)) + f
 
 
 def labor_market_clearing(h):
@@ -57,11 +55,6 @@ def mark_up(j):
 def optimal_price(h, j):
     """Optimal price of good j sold in city h."""
     return mark_up(j) * marginal_costs(h, j)
-
-
-def total_profits(h):
-    """Total profits for a firm in city h."""
-    return total_revenue(h) - total_cost(h)
 
 
 def quantity_demand(price, j):
@@ -91,13 +84,7 @@ def revenue(price, quantity):
 
 def total_cost(h):
     """Total cost of production for a firm in city h."""
-    individual_costs = []
-    for j in range(num_cities):
-        p_star = optimal_price(h, j)
-        q_star = quantity_demand(p_star, j)
-        individual_costs.append(cost(q_star, h, j))
-
-    return sum(individual_costs)
+    return total_variable_cost(h) + total_fixed_cost(h)
 
 
 def total_exports(h):
@@ -111,8 +98,18 @@ def total_exports(h):
     return sum(individual_exports)
 
 
+def total_fixed_cost(h):
+    """Total fixed cost of production for a firm in city h."""
+    return f * nominal_wage[h]
+
+
+def total_fixed_labor_demand(h):
+    """Total fixed labor demand for firms in city h."""
+    return num_firms[h] * f
+
+
 def total_imports(h):
-    """Total imports of various foods into city h."""
+    """Total imports of various goods into city h."""
     individual_imports = []
     for j in range(num_cities):
         p_star = optimal_price(j, h)
@@ -123,14 +120,13 @@ def total_imports(h):
 
 
 def total_labor_demand(h):
-    """Total labor demand for a firm in city h."""
-    individual_labor_demands = []
-    for j in range(num_cities):
-        p_star = optimal_price(h, j)
-        q_star = quantity_demand(p_star, j)
-        individual_labor_demands.append(num_firms[h] * labor_demand(q_star, h, j))
+    """Total demand for labor for firms in city h."""
+    return total_variable_labor_demand(h) + total_fixed_labor_demand(h)
 
-    return sum(individual_labor_demands)
+
+def total_profits(h):
+    """Total profits for a firm in city h."""
+    return total_revenue(h) - total_cost(h)
 
 
 def total_revenue(h):
@@ -143,6 +139,46 @@ def total_revenue(h):
 
     return sum(individual_revenues)
 
+
+def total_variable_cost(h):
+    """Total variable costs of production for a firm in city h."""
+    individual_variable_costs = []
+    for j in range(num_cities):
+        p_star = optimal_price(h, j)
+        q_star = quantity_demand(p_star, j)
+        individual_variable_costs.append(variable_cost(q_star, h, j))
+
+    return sum(individual_variable_costs)
+
+
+def total_variable_labor_demand(h):
+    """Total variable labor demand for firms in city h."""
+    individual_labor_demands = []
+    for j in range(num_cities):
+        p_star = optimal_price(h, j)
+        q_star = quantity_demand(p_star, j)
+        tmp_demand = num_firms[h] * variable_labor_demand(q_star, h, j)
+        individual_labor_demands.append(tmp_demand)
+
+    return sum(individual_labor_demands)
+
+
+def variable_cost(quantity, h, j):
+    """
+    Variable cost of a firm in city h to produce a given quantity of good for
+    sale in city j.
+
+    """
+    return variable_labor_demand(quantity, h, j) * nominal_wage[h]
+
+
+def variable_labor_demand(quantity, h, j):
+    """
+    Variable labor demand by firm in city h to produce a given quantity of good
+    for sale in city j.
+
+    """
+    return quantity / labor_productivity(h, j)
 
 # construct equilibrium system of non-linear equations (and its jacobian)
 equations = []
@@ -158,15 +194,15 @@ for h in range(num_cities):
     equations += [resource_constraint(h) for h in range(num_cities)]
     endog_vars += [num_firms[h] for h in range(num_cities)]
 
-equilibrium_system = sym.Matrix(equations)
-equilibrium_jacobian = equilibrium_system.jacobian(endog_vars)
+_symbolic_system = sym.Matrix(equations)
+_symbolic_jacobian = _symbolic_system.jacobian(endog_vars)
 
 
 # wrap the symbolic equilibrium system and jacobian
 vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-params = (f, phi, elasticity_substitution)
+params = (f, phi, elasticity_substitution, total_labor_supply)
 args = vector_vars + params
-numeric_equilibrium_system = sym.lambdify(args, equilibrium_system,
-                                          modules=[{'ImmutableMatrix': np.array}, "numpy"])
-numeric_equilibrium_jacobian = sym.lambdify(args, equilibrium_jacobian,
-                                            modules=[{'ImmutableMatrix': np.array}, "numpy"])
+_numeric_system = sym.lambdify(args, _symbolic_system,
+                               modules=[{'ImmutableMatrix': np.array}, "numpy"])
+_numeric_jacobian = sym.lambdify(args, _symbolic_jacobian,
+                                 modules=[{'ImmutableMatrix': np.array}, "numpy"])
