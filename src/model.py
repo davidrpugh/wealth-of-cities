@@ -1,5 +1,5 @@
 """
-Code for generating the symbolic equations which define the equilibirum of our
+Code for generating the symbolic equations which define the equilibrium of our
 model.
 
 @author : David R. Pugh
@@ -16,9 +16,12 @@ num_cities = 1
 # define parameters
 f, phi = sym.var('f, phi')
 elasticity_substitution = sym.DeferredVector('theta')
+
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 economic_distance = np.ones((num_cities, num_cities))
 total_labor_supply = sym.DeferredVector('S')
+#total_labor_supply = np.linspace(1e-2, 20, num_cities)
+
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
@@ -185,24 +188,28 @@ equations = []
 endog_vars = []
 
 for h in range(num_cities):
-    equations += [goods_market_clearing(h) for h in range(num_cities)]
-    endog_vars += [nominal_price_level[h] for h in range(num_cities)]
-    equations += [total_profits(h) for h in range(num_cities)]
-    endog_vars += [nominal_gdp[h] for h in range(num_cities)]
-    equations += [labor_market_clearing(h) for h in range(num_cities)]
-    endog_vars += [nominal_wage[h] for h in range(num_cities)]
-    equations += [resource_constraint(h) for h in range(num_cities)]
-    endog_vars += [num_firms[h] for h in range(num_cities)]
 
-_symbolic_system = sym.Matrix(equations)
-_symbolic_jacobian = _symbolic_system.jacobian(endog_vars)
+    # normalize P[0] = 1.0 (so only P[1]...P[num_cities-1] are unknowns)
+    endog_vars += [nominal_price_level[h] for h in range(num_cities)]
+    # drop one equation as a result of normalization
+    equations += [goods_market_clearing(h) for h in range(num_cities)]
+
+    endog_vars += [nominal_gdp[h] for h in range(num_cities)]
+    equations += [total_profits(h) for h in range(num_cities)]
+    endog_vars += [nominal_wage[h] for h in range(num_cities)]
+    equations += [labor_market_clearing(h) for h in range(num_cities)]
+    endog_vars += [num_firms[h] for h in range(num_cities)]
+    equations += [resource_constraint(h) for h in range(num_cities)]
+
+symbolic_system = sym.Matrix(equations)
+symbolic_jacobian = symbolic_system.jacobian(endog_vars)
 
 
 # wrap the symbolic equilibrium system and jacobian
 vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-params = (f, phi, elasticity_substitution, total_labor_supply)
+params = (f, phi, elasticity_substitution)
 args = vector_vars + params
-_numeric_system = sym.lambdify(args, _symbolic_system,
-                               modules=[{'ImmutableMatrix': np.array}, "numpy"])
-_numeric_jacobian = sym.lambdify(args, _symbolic_jacobian,
-                                 modules=[{'ImmutableMatrix': np.array}, "numpy"])
+numeric_system = sym.lambdify(args, symbolic_system,
+                              modules=[{'ImmutableMatrix': np.array}, "numpy"])
+numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
+                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
