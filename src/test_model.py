@@ -18,7 +18,7 @@ P, Y, W, M = sym.var('P, Y, W, M')
 
 # define model equations using derivation from paper (impose f=1; P[0]=1)
 eqn0 = 1 - 1
-eqn1 = (1 / (theta - 1)) * ((theta / (theta - 1)) * (1 / phi))**-theta * (W / P)**-theta * (Y / P) - phi * f
+eqn1 = phi * f - (1 / (theta - 1)) * ((theta / (theta - 1)) * (1 / phi))**-theta * (W / P)**-theta * (Y / P)
 eqn2 = S - (M / phi) * (theta / (theta - 1)) * ((theta / (theta - 1)) * (1 / phi))**-theta * (W / P)**-theta * (Y / P)
 eqn3 = Y - S * W
 
