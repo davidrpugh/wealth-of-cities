@@ -90,10 +90,10 @@ raw_data_frame = pybea.get_data(DataSetName='RegionalData',
                                 Year=years)
 
 # ...clean it and the save a copy to disk!
-clean_data_frame = drop_unused_cols(raw_data_frame)
-clean_data_frame.to_csv('../data/bea/raw_bea_metro_data.csv')
+data_frame = drop_unused_cols(raw_data_frame)
+data_frame.to_csv('../data/bea/raw_bea_metro_data.csv')
 
 # Convert to a Panel object, rescale, and add additional variables (in place!)
-panel = dataframe_to_panel(clean_data_frame)
+panel = dataframe_to_panel(data_frame)
 rescale_variables(panel)
 create_new_variables(panel)
