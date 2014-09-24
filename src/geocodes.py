@@ -8,6 +8,8 @@ import bea
 # load the place names from the BEA data
 data = bea.data_frame[['GeoName', 'GeoFips']].drop_duplicates()
 
+geolocator = geopy.geocoders.GoogleV3(timeout=10)
+
 
 def get_geo_coords(places, geolocator):
     """
