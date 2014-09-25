@@ -38,41 +38,6 @@ def get_geo_coords(data, geolocator):
     df = pd.DataFrame.from_dict(geo_coords, orient='index')
     return df
 
-
-def compute_physical_distance(geo_coords):
-    """
-    Compute measures of physical distance given geo coordinates.
-
-    Parameters
-    ----------
-    geo_coords : DataFrame
-        Pandas DataFrame containing geo coordinate data for U.S. metropolitan
-        statistical areas (MSAs).
-
-    Returns
-    -------
-    great_circle_distance, vincenty_distance : tuple
-        Two (N, N) matrices containing different measurements of physical
-        distance between MSAs.
-
-    """
-    N = geo_coords.shape[0]
-    great_circle_distance = np.array(np.zeros((N, N)))
-    vincenty_distance = np.array(np.zeros((N, N)))
-
-    for i, geo_fips_1 in enumerate(geo_coords.index):
-        for j, geo_fips_2 in enumerate(geo_coords.index):
-            tmp_geo_coords_1 = tuple(geo_coords.ix[geo_fips_1])
-            tmp_geo_coords_2 = tuple(geo_coords.ix[geo_fips_2])
-
-            tmp_metric = great_circle(tmp_geo_coords_1, tmp_geo_coords_2)
-            great_circle_distance[i, j] = tmp_metric.kilometers
-
-            tmp_metric = vincenty(tmp_geo_coords_1, tmp_geo_coords_2)
-            vincenty_distance[i, j] = tmp_metric.kilometers
-
-    return great_circle_distance, vincenty_distance
-
 # load the place names from the BEA data
 data = bea.data_frame[['GeoName', 'GeoFips']].drop_duplicates()
 
@@ -82,7 +47,3 @@ geolocator = geopy.geocoders.GoogleV3(timeout=10)
 # grab and save the geo_coordinates data
 geo_coords = get_geo_coords(data, geolocator)
 geo_coords.to_csv('../data/google/geocoordinates.csv')
-
-# compute the physical distance matrices
-physical_distance_matrices = compute_physical_distance(geo_coords)
-great_circle_distance, vincenty_distance = physical_distance_matrices

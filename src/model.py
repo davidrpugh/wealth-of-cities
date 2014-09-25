@@ -9,16 +9,20 @@ model.
 import numpy as np
 import sympy as sym
 
+from physical_distance import normed_vincenty_distance
 
 # define the number of cities
-num_cities = 1
+num_cities = 2
 
 # define parameters
-f, phi = sym.var('f, phi')
+f, phi, tau = sym.var('f, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
 
+# compute the economic distance
+physical_distance = sym.Matrix(normed_vincenty_distance)
+economic_distance = sym.exp(tau * physical_distance[:num_cities, :num_cities])
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
-economic_distance = np.ones((num_cities, num_cities))
+
 total_labor_supply = sym.DeferredVector('S')
 #total_labor_supply = np.linspace(1e-2, 20, num_cities)
 
@@ -207,7 +211,7 @@ symbolic_jacobian = symbolic_system.jacobian(endog_vars)
 
 # wrap the symbolic equilibrium system and jacobian
 vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-params = (f, phi, elasticity_substitution, total_labor_supply)
+params = (f, phi, tau, elasticity_substitution, total_labor_supply)
 args = vector_vars + params
 numeric_system = sym.lambdify(args, symbolic_system,
                               modules=[{'ImmutableMatrix': np.array}, "numpy"])
