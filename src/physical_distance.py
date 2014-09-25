@@ -5,19 +5,19 @@ import numpy as np
 
 def compute_physical_distance(geo_coords):
     """
-    Compute measures of physical distance given geo coordinates.
+    Compute measures of physical distance given geographical coordinates for
+    U.S. metropolitan statistical areas (MSAs).
 
     Parameters
     ----------
-    geo_coords : DataFrame
-        Pandas DataFrame containing geo coordinate data for U.S. metropolitan
-        statistical areas (MSAs).
+    geo_coords : DataFrame (shape = (N, 2))
+        Pandas DataFrame containing geographical coordinate data for MSAs.
 
     Returns
     -------
     great_circle_distance, vincenty_distance : tuple
-        Two (N, N) matrices containing different measurements of physical
-        distance between MSAs.
+        Two ndarrays with shape (N, N) containing different measurements of
+        physical distance between MSAs.
 
     """
     N = geo_coords.shape[0]
