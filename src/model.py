@@ -9,13 +9,14 @@ model.
 import numpy as np
 import sympy as sym
 
+import master_data
 from physical_distance import normed_vincenty_distance
 
 # define the number of cities
 num_cities = 2
 
 # define parameters
-f, phi, tau = sym.var('f, phi, tau')
+f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
 
 # compute the economic distance
@@ -23,8 +24,10 @@ physical_distance = sym.Matrix(normed_vincenty_distance)
 economic_distance = sym.exp(tau * physical_distance[:num_cities, :num_cities])
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 
-total_labor_supply = sym.DeferredVector('S')
-#total_labor_supply = np.linspace(1e-2, 20, num_cities)
+# compute the effective labor supply
+total_population = master_data.panel['POP_MI'][2010].values
+effective_labor_supply = sym.Matrix([beta * total_population[:num_cities]])
+# total_labor_supply = sym.DeferredVector('S')
 
 
 # define variables
@@ -41,7 +44,7 @@ def goods_market_clearing(h):
 
 def labor_market_clearing(h):
     """Labor market clearing condition for city h."""
-    return total_labor_supply[h] - total_labor_demand(h)
+    return effective_labor_supply[h] - total_labor_demand(h)
 
 
 def labor_productivity(h, j):
@@ -81,7 +84,7 @@ def relative_price(price, j):
 
 def resource_constraint(h):
     """Nominal GDP in city h must equal nominal income in city h."""
-    return nominal_gdp[h] - total_labor_supply[h] * nominal_wage[h]
+    return nominal_gdp[h] - effective_labor_supply[h] * nominal_wage[h]
 
 
 def revenue(price, quantity):
@@ -211,7 +214,7 @@ symbolic_jacobian = symbolic_system.jacobian(endog_vars)
 
 # wrap the symbolic equilibrium system and jacobian
 vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-params = (f, phi, tau, elasticity_substitution, total_labor_supply)
+params = (f, beta, phi, tau, elasticity_substitution)
 args = vector_vars + params
 numeric_system = sym.lambdify(args, symbolic_system,
                               modules=[{'ImmutableMatrix': np.array}, "numpy"])
