@@ -28,8 +28,9 @@ def get_geo_coords(data, geolocator):
         try:
             tmp_idx = data.iloc[i]['GeoFips']
             tmp_loc = geolocator.geocode(geo_name)
-            geo_coords[tmp_idx] = {'lat': tmp_loc.latitude,
-                                   'lng': tmp_loc.longitude}
+            geo_coords[i] = {'GeoFips': tmp_idx,
+                             'lat': tmp_loc.latitude,
+                             'lng': tmp_loc.longitude}
         except AttributeError:
             print("Can't find " + geo_name + "!")
 
@@ -37,7 +38,7 @@ def get_geo_coords(data, geolocator):
     return df
 
 # load the place names from the BEA data
-data = bea.data_frame[['GeoName', 'GeoFips']].drop_duplicates()
+data = bea.dataframe[['GeoName', 'GeoFips']].drop_duplicates()
 
 # define a geolocator
 geolocator = geopy.geocoders.GoogleV3(timeout=10)
