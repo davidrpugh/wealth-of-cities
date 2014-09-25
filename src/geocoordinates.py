@@ -45,7 +45,7 @@ def get_geo_coords(data, geolocator):
 
 
 geo_coords = get_geo_coords(data, geolocator)
-geo_coords.to_csv('../data/google/geo_codes.csv')
+geo_coords.to_csv('../data/google/geocoordinates.csv')
 
 N = geo_coords.shape[0]
 great_circle_distance = np.array(np.zeros((N, N)))
