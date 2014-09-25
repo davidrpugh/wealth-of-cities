@@ -44,17 +44,20 @@ def get_geo_coords(data, geolocator):
     return df
 
 
-# this loop should create two ndarrays storing measures of pair-wise physical distances
 geo_coords = get_geo_coords(data, geolocator)
+geo_coords.to_csv('../data/google/geo_codes.csv')
 
 N = geo_coords.shape[0]
 great_circle_distance = np.array(np.zeros((N, N)))
 vincenty_distance = np.array(np.zeros((N, N)))
 
-for i, geo_fips_1 in enumerate(geo_coords):
-    for j, geo_fips_2 in enumerate(geo_coords):
-        tmp_metric = great_circle(geo_coords[city_i], geo_coords[city_j])
+for i, geo_fips_1 in enumerate(geo_coords.index):
+    for j, geo_fips_2 in enumerate(geo_coords.index):
+        tmp_geo_coords_1 = tuple(geo_coords.ix[geo_fips_1])
+        tmp_geo_coords_2 = tuple(geo_coords.ix[geo_fips_2])
+
+        tmp_metric = great_circle(tmp_geo_coords_1, tmp_geo_coords_2)
         great_circle_distance[i, j] = tmp_metric.kilometers
 
-        tmp_metric = vincenty(geo_coords[city_i], geo_coords[city_j])
+        tmp_metric = vincenty(tmp_geo_coords_1, tmp_geo_coords_2)
         vincenty_distance[i, j] = tmp_metric.kilometers
