@@ -1,6 +1,4 @@
 import geopy
-from geopy.distance import great_circle, vincenty
-import numpy as np
 import pandas as pd
 
 import bea
