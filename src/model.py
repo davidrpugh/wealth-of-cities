@@ -190,23 +190,18 @@ def variable_labor_demand(quantity, h, j):
     """
     return quantity / labor_productivity(h, j)
 
-# construct equilibrium system of non-linear equations (and its jacobian)
-equations = []
-endog_vars = []
+# normalize P[0] = 1.0 (so only P[1]...P[num_cities-1] are unknowns)
+endog_vars = [nominal_price_level[h] for h in range(1, num_cities)]
 
-for h in range(num_cities):
+# drop one equation as a result of normalization
+equations = [goods_market_clearing(h) for h in range(1, num_cities)]
 
-    # normalize P[0] = 1.0 (so only P[1]...P[num_cities-1] are unknowns)
-    endog_vars += [nominal_price_level[h] for h in range(num_cities)]
-    # drop one equation as a result of normalization
-    equations += [goods_market_clearing(h) for h in range(num_cities)]
-
-    endog_vars += [nominal_gdp[h] for h in range(num_cities)]
-    equations += [total_profits(h) for h in range(num_cities)]
-    endog_vars += [nominal_wage[h] for h in range(num_cities)]
-    equations += [labor_market_clearing(h) for h in range(num_cities)]
-    endog_vars += [num_firms[h] for h in range(num_cities)]
-    equations += [resource_constraint(h) for h in range(num_cities)]
+endog_vars += [nominal_gdp[h] for h in range(num_cities)]
+equations += [total_profits(h) for h in range(num_cities)]
+endog_vars += [nominal_wage[h] for h in range(num_cities)]
+equations += [labor_market_clearing(h) for h in range(num_cities)]
+endog_vars += [num_firms[h] for h in range(num_cities)]
+equations += [resource_constraint(h) for h in range(num_cities)]
 
 symbolic_system = sym.Matrix(equations)
 symbolic_jacobian = symbolic_system.jacobian(endog_vars)
