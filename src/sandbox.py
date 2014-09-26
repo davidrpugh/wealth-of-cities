@@ -88,6 +88,15 @@ result = optimize.root(equilibrium_system,
                        x0=initial_guess,
                        args=(f, beta, phi, tau, theta),
                        jac=equilibrium_jacobian,
-                       method='krylov',
+                       method='hybr',
                        tol=1e-6,
                        )
+
+print("Solution converged? {}".format(result.success))
+print("Equilibrium nominal price levels:\n{}".format(result.x[:num_cities-1]))
+print("Equilibrium nominal GDP:\n{}".format(result.x[num_cities-1:2 * num_cities-1]))
+print("Equilibrium nominal wages:\n{}".format(result.x[2 * num_cities-1:3 * num_cities-1]))
+print("Equilibrium number of firms:\n{}".format(result.x[3 * num_cities-1:]))
+
+
+
