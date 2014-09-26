@@ -3,7 +3,7 @@ Code for generating the symbolic equations which define the equilibrium of our
 model.
 
 @author : David R. Pugh
-@date : 2014-09-15
+@date : 2014-09-25
 
 """
 import numpy as np
@@ -13,15 +13,15 @@ import master_data
 from physical_distance import normed_vincenty_distance
 
 # define the number of cities
-num_cities = 2
+num_cities = 15
 
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
 
 # compute the economic distance
-physical_distance = sym.Matrix(normed_vincenty_distance)
-economic_distance = sym.exp(tau * physical_distance[:num_cities, :num_cities])
+physical_distance = normed_vincenty_distance
+economic_distance = np.exp(physical_distance[:num_cities, :num_cities])**tau
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 
 # compute the effective labor supply
