@@ -50,3 +50,10 @@ great_circle_distance, vincenty_distance = physical_distance_matrices
 # normalize the distance measures (for numeric purposes)
 normed_vincenty_distance = vincenty_distance / vincenty_distance.max()
 normed_great_circle_distance = great_circle_distance / great_circle_distance.max()
+
+# save the resulting arrays to disk
+with open('../data/google/normed_vincenty_distance.npy', 'w') as results:
+    np.save(results, normed_vincenty_distance)
+
+with open('../data/google/normed_great_circle_distance.npy', 'w') as results:
+    np.save(results, normed_great_circle_distance)

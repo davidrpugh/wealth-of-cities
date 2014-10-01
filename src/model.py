@@ -10,23 +10,22 @@ import numpy as np
 import sympy as sym
 
 import master_data
-from physical_distance import normed_vincenty_distance
 
 # define the number of cities
-num_cities = 17
+num_cities = 5
 
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
 
 # compute the economic distance
-physical_distance = normed_vincenty_distance
+physical_distance = np.load('../data/google/normed_vincenty_distance.npy')
 economic_distance = np.exp(physical_distance[:num_cities, :num_cities])**tau
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 
 # compute the effective labor supply
 total_population = master_data.panel['POP_MI'][2010].values
-effective_labor_supply = sym.Matrix([beta * total_population[:num_cities]])
+effective_labor_supply = sym.Matrix([beta * total_population[-num_cities:]])
 # total_labor_supply = sym.DeferredVector('S')
 
 
