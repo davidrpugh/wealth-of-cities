@@ -13,7 +13,7 @@ import master_data
 from physical_distance import normed_vincenty_distance
 
 # define the number of cities
-num_cities = 15
+num_cities = 17
 
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
@@ -167,10 +167,9 @@ def total_variable_labor_demand(h):
     for j in range(num_cities):
         p_star = optimal_price(h, j)
         q_star = quantity_demand(p_star, j)
-        tmp_demand = num_firms[h] * variable_labor_demand(q_star, h, j)
-        individual_labor_demands.append(tmp_demand)
+        individual_labor_demands.append(variable_labor_demand(q_star, h, j))
 
-    return sum(individual_labor_demands)
+    return num_firms[h] * sum(individual_labor_demands)
 
 
 def variable_cost(quantity, h, j):

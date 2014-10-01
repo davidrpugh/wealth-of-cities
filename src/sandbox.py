@@ -11,10 +11,10 @@ f, beta, phi, tau = 1.0, 1.0, 1.0, 1.0
 theta = np.repeat(1.5, num_cities)
 
 # define an initial guess
-P0 = np.ones(num_cities-1)
-Y0 = np.ones(num_cities)
+P0 = np.repeat(0.95, num_cities-1)
+Y0 = np.repeat(1.0, num_cities)
 W0 = Y0 / (beta * model.total_population[:num_cities])
-M0 = np.repeat(0.75, num_cities)
+M0 = np.repeat(0.5, num_cities)
 initial_guess = np.hstack((P0, Y0, W0, M0))
 
 
@@ -66,7 +66,7 @@ def equilibrium_jacobian(X, f, beta, phi, tau, theta):
     tau : float
         Iceberg trade costs.
     theta : ndarray
-        Elasticity of substitutio between varieties of the consumption good.
+        Elasticity of substitution between varieties of the consumption good.
 
     Returns
     -------
@@ -97,6 +97,3 @@ print("Equilibrium nominal price levels:\n{}".format(result.x[:num_cities-1]))
 print("Equilibrium nominal GDP:\n{}".format(result.x[num_cities-1:2 * num_cities-1]))
 print("Equilibrium nominal wages:\n{}".format(result.x[2 * num_cities-1:3 * num_cities-1]))
 print("Equilibrium number of firms:\n{}".format(result.x[3 * num_cities-1:]))
-
-
-
