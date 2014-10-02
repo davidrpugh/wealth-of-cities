@@ -2,20 +2,16 @@ import numpy as np
 from scipy import optimize
 
 import model
+from test_model import get_initial_condition
 
 # define the number of cities
 num_cities = model.num_cities
 
 # define parameters
-f, beta, phi, tau = 1.0, 1.0, 1.0, 1.0
-theta = np.repeat(1.5, num_cities)
+f, beta, phi, tau = 1.0, 1.31, 1.0 / 1.31, 0.05
+theta = np.repeat(10.0, num_cities)
 
-# define an initial guess
-P0 = np.repeat(0.95, num_cities-1)
-Y0 = np.repeat(1.0, num_cities)
-W0 = Y0 / (beta * model.total_population[:num_cities])
-M0 = np.repeat(0.5, num_cities)
-initial_guess = np.hstack((P0, Y0, W0, M0))
+initial_guess = get_initial_condition(num_cities, f, beta, phi, tau, theta)
 
 
 def equilibrium_system(X, f, beta, phi, tau, theta):
@@ -87,7 +83,7 @@ def equilibrium_jacobian(X, f, beta, phi, tau, theta):
 result = optimize.root(equilibrium_system,
                        x0=initial_guess,
                        args=(f, beta, phi, tau, theta),
-                       jac=equilibrium_jacobian,
+                       #jac=equilibrium_jacobian,
                        method='hybr',
                        tol=1e-6,
                        )

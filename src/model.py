@@ -12,7 +12,7 @@ import sympy as sym
 import master_data
 
 # define the number of cities
-num_cities = 5
+num_cities = 50
 
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
@@ -24,9 +24,10 @@ economic_distance = np.exp(physical_distance[:num_cities, :num_cities])**tau
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 
 # compute the effective labor supply
-data = master_data.panel.minor_xs(2010)
-sorted_data = data.sort('POP_MI', ascending=False)
-total_population = sorted_data['POP_MI'].values
+raw_data = master_data.panel['POP_MI'][2010]
+clean_data = raw_data.drop([998, 48260])  # drop MSAs with bad geo coords
+sorted_data = clean_data.sort(ascending=False, inplace=False)
+total_population = sorted_data.values
 effective_labor_supply = sym.Matrix([beta * total_population])
 # total_labor_supply = sym.DeferredVector('S')
 
@@ -204,7 +205,7 @@ equations = ([goods_market_clearing(h) for h in range(1, num_cities)] +
              [resource_constraint(h) for h in range(num_cities)])
 
 symbolic_system = sym.Matrix(equations)
-symbolic_jacobian = symbolic_system.jacobian(endog_vars)
+#symbolic_jacobian = symbolic_system.jacobian(endog_vars)
 
 # wrap the symbolic equilibrium system and jacobian
 vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
@@ -213,5 +214,6 @@ args = vector_vars + params
 
 numeric_system = sym.lambdify(args, symbolic_system,
                               modules=[{'ImmutableMatrix': np.array}, "numpy"])
-numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
-                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
+
+#numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
+#                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
