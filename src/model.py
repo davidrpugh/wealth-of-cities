@@ -24,10 +24,11 @@ economic_distance = np.exp(physical_distance[:num_cities, :num_cities])**tau
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 
 # compute the effective labor supply
-total_population = master_data.panel['POP_MI'][2010].values
-effective_labor_supply = sym.Matrix([beta * total_population[-num_cities:]])
+data = master_data.panel.minor_xs(2010)
+sorted_data = data.sort('POP_MI', ascending=False)
+total_population = sorted_data['POP_MI'].values
+effective_labor_supply = sym.Matrix([beta * total_population])
 # total_labor_supply = sym.DeferredVector('S')
-
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
