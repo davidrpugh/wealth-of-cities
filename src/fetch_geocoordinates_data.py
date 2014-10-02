@@ -1,7 +1,7 @@
 import geopy
 import pandas as pd
 
-import bea
+import fetch_bea_data
 
 
 def get_geo_coords(data, geolocator):
@@ -26,8 +26,9 @@ def get_geo_coords(data, geolocator):
     geo_coords = {}
     for i, geo_name in enumerate(data['GeoName']):
         try:
+            clean_geo_name = geo_name[:-32]  # drop (Metropolitan Statistical Area)
             tmp_idx = data.iloc[i]['GeoFips']
-            tmp_loc = geolocator.geocode(geo_name)
+            tmp_loc = geolocator.geocode(clean_geo_name)
             geo_coords[i] = {'GeoFips': tmp_idx,
                              'lat': tmp_loc.latitude,
                              'lng': tmp_loc.longitude}
@@ -38,7 +39,7 @@ def get_geo_coords(data, geolocator):
     return df
 
 # load the place names from the BEA data
-data = bea.dataframe[['GeoName', 'GeoFips']].drop_duplicates()
+data = fetch_bea_data.dataframe[['GeoName', 'GeoFips']].drop_duplicates()
 
 # define a geolocator
 geolocator = geopy.geocoders.GoogleV3(timeout=10)

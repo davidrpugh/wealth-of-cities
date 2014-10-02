@@ -34,11 +34,11 @@ key_codes = ['POP_MI',     # Total MSA population
 years = ['2000', '2005', '2010']
 
 # fectch the data from the BEA data api...
-raw_data_frame = pybea.get_data(DataSetName='RegionalData',
-                                KeyCodes=key_codes,
-                                GeoFips='MSA',
-                                Year=years)
+raw_dataframe = pybea.get_data(DataSetName='RegionalData',
+                               KeyCodes=key_codes,
+                               GeoFips='MSA',
+                               Year=years)
 
 # ...clean it and the save a copy to disk!
-data_frame = drop_unused_cols(raw_data_frame)
-data_frame.to_csv('../data/bea/raw_bea_metro_data.csv')
+dataframe = drop_unused_cols(raw_dataframe)
+dataframe.to_csv('../data/bea/raw_bea_metro_data.csv')
