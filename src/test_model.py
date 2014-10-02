@@ -2,7 +2,7 @@
 Test suite for the model.py module.
 
 @author : David R. Pugh
-@date : 2014-09-25
+@date : 2014-10-01
 
 """
 import numpy as np

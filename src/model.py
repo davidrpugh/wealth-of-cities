@@ -3,7 +3,7 @@ Code for generating the symbolic equations which define the equilibrium of our
 model.
 
 @author : David R. Pugh
-@date : 2014-09-25
+@date : 2014-10-01
 
 """
 import numpy as np
@@ -12,7 +12,7 @@ import sympy as sym
 import master_data
 
 # define the number of cities
-num_cities = 50
+num_cities = 380
 
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
@@ -26,8 +26,7 @@ economic_distance = np.exp(physical_distance[:num_cities, :num_cities])**tau
 # compute the effective labor supply
 raw_data = master_data.panel['POP_MI'][2010]
 clean_data = raw_data.drop([998, 48260])  # drop MSAs with bad geo coords
-sorted_data = clean_data.sort(ascending=False, inplace=False)
-total_population = sorted_data.values
+total_population = clean_data.values
 effective_labor_supply = sym.Matrix([beta * total_population])
 # total_labor_supply = sym.DeferredVector('S')
 
