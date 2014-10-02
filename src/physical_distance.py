@@ -43,7 +43,8 @@ def compute_physical_distance(data):
 data = pd.read_csv('../data/master.csv', index_col='GeoFips')
 
 # compute the physical distance matrices
-geo_coords = data[['lat', 'lng']].drop_duplicates()
+geo_coords = data[['lat', 'lng']].drop_duplicates(take_last=True)
+geo_coords.drop(998, inplace=True)  # drop United States (Metropolitan Portion)
 physical_distance_matrices = compute_physical_distance(geo_coords)
 great_circle_distance, vincenty_distance = physical_distance_matrices
 
