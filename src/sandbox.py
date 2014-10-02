@@ -2,7 +2,7 @@ import numpy as np
 from scipy import optimize
 
 import model
-from test_model import get_initial_condition
+from test_model import get_initial_guess
 
 # define the number of cities
 num_cities = model.num_cities
@@ -11,7 +11,7 @@ num_cities = model.num_cities
 f, beta, phi, tau = 1.0, 1.31, 1.0 / 1.31, 0.05
 theta = np.repeat(10.0, num_cities)
 
-initial_guess = get_initial_condition(num_cities, f, beta, phi, tau, theta)
+initial_guess = get_initial_guess(num_cities, f, beta, phi, tau, theta)
 
 
 def equilibrium_system(X, f, beta, phi, tau, theta):
@@ -84,8 +84,9 @@ result = optimize.root(equilibrium_system,
                        x0=initial_guess,
                        args=(f, beta, phi, tau, theta),
                        #jac=equilibrium_jacobian,
-                       method='hybr',
+                       method='krylov',
                        tol=1e-6,
+                       options={'disp': True}
                        )
 
 print("Solution converged? {}".format(result.success))

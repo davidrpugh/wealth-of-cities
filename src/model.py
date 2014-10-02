@@ -12,7 +12,7 @@ import sympy as sym
 import master_data
 
 # define the number of cities
-num_cities = 380
+num_cities = 1
 
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
@@ -204,7 +204,7 @@ equations = ([goods_market_clearing(h) for h in range(1, num_cities)] +
              [resource_constraint(h) for h in range(num_cities)])
 
 symbolic_system = sym.Matrix(equations)
-#symbolic_jacobian = symbolic_system.jacobian(endog_vars)
+symbolic_jacobian = symbolic_system.jacobian(endog_vars)
 
 # wrap the symbolic equilibrium system and jacobian
 vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
@@ -214,5 +214,5 @@ args = vector_vars + params
 numeric_system = sym.lambdify(args, symbolic_system,
                               modules=[{'ImmutableMatrix': np.array}, "numpy"])
 
-#numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
-#                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
+numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
+                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
