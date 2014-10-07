@@ -42,9 +42,12 @@ def compute_physical_distance(data):
 # load the csv file containing the geocoordinates
 data = pd.read_csv('../data/master.csv', index_col='GeoFips')
 
+# extract relevant subset of data and sort descending on nominal GDP
+subset = data.loc[(data.Code == 'GDP_MP') & (data.TimePeriod == 2010)]
+sorted_subset = subset.sort('DataValue', ascending=False)
+geo_coords = sorted_subset[['lat', 'lng']].drop([998, 48260])
+
 # compute the physical distance matrices
-geo_coords = data[['lat', 'lng']].drop_duplicates(take_last=True)
-geo_coords.drop(998, inplace=True)  # drop United States (Metropolitan Portion)
 physical_distance_matrices = compute_physical_distance(geo_coords)
 great_circle_distance, vincenty_distance = physical_distance_matrices
 
