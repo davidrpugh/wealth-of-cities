@@ -1,12 +1,13 @@
 """
-Fetches relevant data on Metropolitan Statistical Areas (MSAs) from the Bureau
-of Economic Analysis (BEA) data API.
+This script combines the Bureau of Economic Analysis (BEA) data on U.S.
+metropolitan statistical areas (MSAs) with the geographical coordinates
+data from Google Geocoding API.
 
 @author : David R. Pugh
-@date : 2014-09-23
+@date : 2014-09-25
 
 """
-import pybea
+import pandas as pd
 
 
 def create_new_variables(panel):
@@ -30,17 +31,10 @@ def create_new_variables(panel):
 
 def dataframe_to_panel(df):
     """Convert combined BEA DataFrame to Pandas Panel object."""
-    hierarchical_df = df.set_index(['Code', 'TimePeriod', 'GeoFips'])
+    hierarchical_df = df.set_index(['Code', df.index, 'TimePeriod'])
     unstacked_df = hierarchical_df.DataValue.unstack('Code')
     panel = unstacked_df.to_panel()
     return panel
-
-
-def drop_unused_cols(df):
-    """Remove unused columns from the BEA combined BEA DataFrame."""
-    # incorporate the unit multiplier before dropping UNIT_MULT!
-    df.loc[:, 'DataValue'] = df['DataValue'] * 10**df['UNIT_MULT']
-    return df.drop(['NoteRef', 'UNIT_MULT'], axis=1)
 
 
 def rescale_variables(panel):
@@ -65,35 +59,26 @@ def rescale_variables(panel):
         else:
             pass
 
+# load the csv file containing the bea data
+bea_df = pd.read_csv('../data/bea/raw_bea_metro_data.csv',
+                     index_col='GeoFips',
+                     usecols=['CL_UNIT', 'Code', 'DataValue', 'GeoFips', 'TimePeriod'],
+                     )
 
-# we are interested in the following variables...
-key_codes = ['POP_MI',     # Total MSA population
-             'GDP_MP',     # Nominal GDP
-             'RGDP_MP',    # Real GDP
-             'PCRGDP_MP',  # Per capita real GDP
-             'TPI_MI',     # Total personal income
-             'PCPI_MI',    # Per capita personal income
-             'DIR_MI',     # Dividends, interest, and rent
-             'PCTR_MI',    # Personal current transfer receipts
-             'WS_MI',      # Wage and salary dispursements
-             'SUPP_MI',    # Supplements to wages and salary
-             'PROP_MI',    # Proprietors income
-             ]
+# load the csv file containing the geocoordinates
+geo_coords_df = pd.read_csv('../data/google/geocoordinates.csv',
+                            index_col='GeoFips',
+                            usecols=['GeoFips', 'lat', 'lng'],
+                            )
 
-# ...in the following years
-years = ['2000', '2005', '2010']
+# combine the two dataframes and save
+dataframe = pd.merge(bea_df, geo_coords_df, left_index=True, right_index=True)
+dataframe.to_csv('../data/master.csv')
 
-# fectch the data from the BEA data api...
-raw_data_frame = pybea.get_data(DataSetName='RegionalData',
-                                KeyCodes=key_codes,
-                                GeoFips='MSA',
-                                Year=years)
+# convert to a Panel object
+panel = dataframe_to_panel(dataframe)
 
-# ...clean it and the save a copy to disk!
-data_frame = drop_unused_cols(raw_data_frame)
-data_frame.to_csv('../data/bea/raw_bea_metro_data.csv')
-
-# Convert to a Panel object, rescale, and add additional variables (in place!)
-panel = dataframe_to_panel(data_frame)
+# rescale, and add additional variables (in place!)
 rescale_variables(panel)
 create_new_variables(panel)
+panel.to_pickle('../data/master.pkl')
