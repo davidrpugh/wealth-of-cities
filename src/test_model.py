@@ -10,6 +10,7 @@ import numpy as np
 
 from initial_guess import get_initial_guess
 import model
+import physical_distance
 import sandbox
 
 
@@ -18,7 +19,7 @@ fixed_costs = np.logspace(-2, 2, 7)
 scaling_factors = np.logspace(-2, 2, 7)
 productivities = np.logspace(-2, 2, 7)
 iceberg_costs = np.logspace(-2, 2, 7)
-elasticities = np.logspace(1.5e-1, 2, 7)
+elasticities = np.logspace(2e-1, 2, 7)
 
 
 def test_residual():
@@ -41,7 +42,9 @@ def test_residual():
                         actual_residual = sandbox.equilibrium_system(X0, **tmp_params)
 
                         np.testing.assert_almost_equal(expected_residual,
-                                                       actual_residual)
+                                                       actual_residual,
+                                                       err_msg=tmp_params.__str__(),
+                                                       verbose=True)
 
 
 def test_balance_trade():
@@ -51,3 +54,9 @@ def test_balance_trade():
         expected_trade_balance = 0
 
         nose.tools.assert_equals(actual_trade_balance, expected_trade_balance)
+
+
+def test_data_alignment():
+    """Testing alignment of population and physical distance data."""
+    condition = model.clean_data.index == physical_distance.geo_coords.index
+    nose.tools.assert_true(condition.all())

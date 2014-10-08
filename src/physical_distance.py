@@ -16,8 +16,8 @@ def compute_physical_distance(data):
     Returns
     -------
     great_circle_distance, vincenty_distance : tuple
-        Two ndarrays with shape (N, N) containing different measurements of
-        physical distance between MSAs.
+        Two numpy.ndarrays with shape (N, N) containing different measurements
+        of physical distance between MSAs.
 
     """
     N = data.shape[0]

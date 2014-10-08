@@ -84,9 +84,9 @@ result = optimize.root(equilibrium_system,
                        x0=initial_guess,
                        args=(f, beta, phi, tau, theta),
                        #jac=equilibrium_jacobian,
-                       method='krylov',
+                       method='hybr',
                        tol=1e-6,
-                       options={'disp': True}
+                       #options={'disp': True}
                        )
 
 print("Solution converged? {}".format(result.success))
