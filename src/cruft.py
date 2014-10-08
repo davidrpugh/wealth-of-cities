@@ -22,6 +22,8 @@ num_firms = sym.DeferredVector('M')
 
 class Model(object):
 
+    modules = [{'ImmutableMatrix': np.array}, "numpy"]
+
     def __init__(self, number_cities, params, physical_distances, population):
         """
         Create an instance of the Model class.
@@ -45,6 +47,32 @@ class Model(object):
         self.population = population
 
         # initialize cache values
+        self.__numeric_jacobian = None
+        self.__numeric_system = None
+        self.__symbolic_equations = None
+        self.__symbolic_jacobian = None
+        self.__symbolic_system = None
+        self.__symbolic_variables = None
+
+    @property
+    def _args(self):
+        variables = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
+        params = (f, beta, phi, tau, elasticity_substitution)
+        return variables + params
+
+    @property
+    def _numeric_jacobian(self):
+        if self.__numeric_jacobian is None:
+            return sym.lambdify(self._args, self._symbolic_jacobian, self.modules)
+        else:
+            return self.__numeric_jacobian
+
+    @property
+    def _numeric_system(self):
+        if self.__numeric_system is None:
+            return sym.lambdify(self._args, self._symbolic_system, self.modules)
+        else:
+            return self.__numeric_system
 
     @property
     def _symbolic_equations(self):
@@ -55,12 +83,29 @@ class Model(object):
         :type: list
 
         """
-        # drop one equation as a result of normalization
-        equations = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
-                     [self.total_profits(h) for h in range(self.N)] +
-                     [self.labor_market_clearing(h) for h in range(self.N)] +
-                     [self.resource_constraint(h) for h in range(self.N)])
-        return equations
+        if self.__symbolic_equations is None:
+            # drop one equation as a result of normalization
+            equations = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
+                         [self.total_profits(h) for h in range(self.N)] +
+                         [self.labor_market_clearing(h) for h in range(self.N)] +
+                         [self.resource_constraint(h) for h in range(self.N)])
+            return equations
+        else:
+            return self.__symbolic_equations
+
+    @property
+    def _symbolic_jacobian(self):
+        """
+        Matrix representation of Jacobian matrix of partial derivatives.
+
+        :getter: Return the current Jacobian matrix.
+        :type: sympy.Matrix
+
+        """
+        if self.__symbolic_jacobian is None:
+            return self._symbolic_system.jacobian(self._symbolic_variables)
+        else:
+            return self.__symbolic_jacobian
 
     @property
     def _symbolic_system(self):
@@ -82,12 +127,15 @@ class Model(object):
         :type: list
 
         """
-        # normalize P[0] = 1.0 (so only P[1]...P[num_cities-1] are unknowns)
-        variables = ([nominal_price_level[h] for h in range(1, self.N)] +
-                     [nominal_gdp[h] for h in range(self.N)] +
-                     [nominal_wage[h] for h in range(self.N)] +
-                     [num_firms[h] for h in range(self.N)])
-        return variables
+        if self.__symbolic_variables is None:
+            # normalize P[0] = 1.0 (only P[1]...P[num_cities-1] are unknowns)
+            variables = ([nominal_price_level[h] for h in range(1, self.N)] +
+                         [nominal_gdp[h] for h in range(self.N)] +
+                         [nominal_wage[h] for h in range(self.N)] +
+                         [num_firms[h] for h in range(self.N)])
+            return variables
+        else:
+            return self.__symbolic_variables
 
     @property
     def economic_distances(self):
@@ -164,7 +212,7 @@ class Model(object):
 
     @classmethod
     def _validate_number_cities(cls, value):
-        if not isinstance(params, int):
+        if not isinstance(value, int):
             mesg = "Model.N attribute must have type int and not {}"
             raise AttributeError(mesg.format(value.__class__))
         elif value < 1:
@@ -332,18 +380,6 @@ class Model(object):
         """
         return quantity / cls.labor_productivity(h, j)
 
-#symbolic_jacobian = symbolic_system.jacobian(endog_vars)
-
-# wrap the symbolic equilibrium system and jacobian
-vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-params = (f, beta, phi, tau, elasticity_substitution)
-args = vector_vars + params
-
-numeric_system = sym.lambdify(args, symbolic_system,
-                              modules=[{'ImmutableMatrix': np.array}, "numpy"])
-
-#numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
-#                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
 
 if __name__ == '__main__':
 
