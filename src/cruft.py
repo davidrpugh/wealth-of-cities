@@ -11,16 +11,12 @@ import sympy as sym
 
 import master_data
 
-# define the number of cities
-num_cities = 1
-
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
 
 # compute the economic distance
 physical_distance = np.load('../data/google/normed_vincenty_distance.npy')
-economic_distance = np.exp(physical_distance[:num_cities, :num_cities])**tau
 # economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
 
 # compute the effective labor supply
@@ -39,7 +35,7 @@ num_firms = sym.DeferredVector('M')
 
 class Model(object):
 
-    def __init__(self, number_cities, params):
+    def __init__(self, number_cities, params, physical_distances):
         """
         Create an instance of the Model class.
 
@@ -53,6 +49,36 @@ class Model(object):
         """
         self.N = number_cities
         self.params = params
+        self.physical_distances
+
+    @property
+    def economic_distances(self):
+        return np.exp(self.physical_distances)**tau
+
+    @property
+    def N(self):
+        """
+        Number of cities in the economy.
+
+        :getter: Return the current number of cities.
+        :setter: Set a new number of cities.
+        :type: int
+
+        """
+        return self._N
+
+    @N.setter
+    def N(self, value):
+        """Set a new number of cities."""
+        self._N = self._validate_number_cities(value)
+
+    @property
+    def physical_distances(self):
+        return self._physical_distances[:self.N, :self.N]
+
+    @physical_distances.setter
+    def physical_distances(self, array):
+        self._physical_distance = array
 
     @property
     def params(self):
@@ -71,6 +97,18 @@ class Model(object):
         """Set a new parameter dictionary."""
         self._params = self._validate_params(value)
 
+    @classmethod
+    def _validate_number_cities(cls, value):
+        if not isinstance(params, int):
+            mesg = "Model.N attribute must have type int and not {}"
+            raise AttributeError(mesg.format(value.__class__))
+        elif value < 1:
+            mesg = "Model.N attribute must be greater than or equal to 1."
+            raise AttributeError(mesg)
+        else:
+            return value
+
+    @classmethod
     def _validate_params(cls, params):
         required_params = ['f', 'beta', 'phi', 'theta', 'tau']
         if not isinstance(params, dict):
@@ -92,10 +130,9 @@ class Model(object):
         """Labor market clearing condition for city h."""
         return effective_labor_supply[h] - cls.total_labor_demand(h)
 
-    @staticmethod
-    def labor_productivity(h, j):
+    def labor_productivity(self, h, j):
         """Productivity of labor in city h when producing good j."""
-        return phi / economic_distance[h, j]
+        return phi / self.economic_distances[h, j]
 
     @classmethod
     def marginal_costs(cls, h, j):
@@ -142,14 +179,14 @@ class Model(object):
         """Total cost of production for a firm in city h."""
         return cls.total_variable_cost(h) + cls.total_fixed_cost(h)
 
-    @classmethod
-    def total_exports(cls, h):
+    def total_exports(self, h):
         """Total exports of various goods from city h."""
         individual_exports = []
-        for j in range(num_cities):
-            p_star = cls.optimal_price(h, j)
-            q_star = cls.quantity_demand(p_star, j)
-            individual_exports.append(num_firms[h] * cls.revenue(p_star, q_star))
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            total_revenue_h = num_firms[h] * self.revenue(p_star, q_star)
+            individual_exports.append(total_revenue_h)
 
         return sum(individual_exports)
 
@@ -163,14 +200,14 @@ class Model(object):
         """Total fixed labor demand for firms in city h."""
         return num_firms[h] * f
 
-    @classmethod
-    def total_imports(cls, h):
+    def total_imports(self, h):
         """Total imports of various goods into city h."""
         individual_imports = []
-        for j in range(num_cities):
-            p_star = cls.optimal_price(j, h)
-            q_star = cls.quantity_demand(p_star, h)
-            individual_imports.append(num_firms[j] * cls.revenue(p_star, q_star))
+        for j in range(self.N):
+            p_star = self.optimal_price(j, h)
+            q_star = self.quantity_demand(p_star, h)
+            total_revenue_j = num_firms[j] * self.revenue(p_star, q_star)
+            individual_imports.append(total_revenue_j)
 
         return sum(individual_imports)
 
@@ -184,44 +221,41 @@ class Model(object):
         """Total profits for a firm in city h."""
         return cls.total_revenue(h) - cls.total_cost(h)
 
-    @classmethod
-    def total_revenue(cls, h):
+    def total_revenue(self, h):
         """Total revenue for a firm producing in city h."""
         individual_revenues = []
-        for j in range(num_cities):
-            p_star = cls.optimal_price(h, j)
-            q_star = cls.quantity_demand(p_star, j)
-            individual_revenues.append(cls.revenue(p_star, q_star))
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            individual_revenues.append(self.revenue(p_star, q_star))
 
         return sum(individual_revenues)
 
-    @classmethod
-    def total_variable_cost(cls, h):
+    def total_variable_cost(self, h):
         """Total variable costs of production for a firm in city h."""
         individual_variable_costs = []
-        for j in range(num_cities):
-            p_star = cls.optimal_price(h, j)
-            q_star = cls.quantity_demand(p_star, j)
-            individual_variable_costs.append(cls.variable_cost(q_star, h, j))
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            individual_variable_costs.append(self.variable_cost(q_star, h, j))
 
         return sum(individual_variable_costs)
 
-    @classmethod
-    def total_variable_labor_demand(cls, h):
+    def total_variable_labor_demand(self, h):
         """Total variable labor demand for firms in city h."""
         individual_labor_demands = []
-        for j in range(num_cities):
-            p_star = cls.optimal_price(h, j)
-            q_star = cls.quantity_demand(p_star, j)
-            individual_labor_demands.append(cls.variable_labor_demand(q_star, h, j))
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            individual_labor_demands.append(self.variable_labor_demand(q_star, h, j))
 
         return num_firms[h] * sum(individual_labor_demands)
 
     @classmethod
     def variable_cost(cls, quantity, h, j):
         """
-        Variable cost of a firm in city h to produce a given quantity of good for
-        sale in city j.
+        Variable cost of a firm in city h to produce a given quantity of good
+        for sale in city j.
 
         """
         return cls.variable_labor_demand(quantity, h, j) * nominal_wage[h]
@@ -229,8 +263,8 @@ class Model(object):
     @classmethod
     def variable_labor_demand(cls, quantity, h, j):
         """
-        Variable labor demand by firm in city h to produce a given quantity of good
-        for sale in city j.
+        Variable labor demand by firm in city h to produce a given quantity of
+        good for sale in city j.
 
         """
         return quantity / cls.labor_productivity(h, j)
