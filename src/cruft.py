@@ -9,22 +9,9 @@ model.
 import numpy as np
 import sympy as sym
 
-import master_data
-
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
-
-# compute the economic distance
-physical_distance = np.load('../data/google/normed_vincenty_distance.npy')
-# economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
-
-# compute the effective labor supply
-raw_data = master_data.panel.minor_xs(2010)
-clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
-total_population = clean_data['POP_MI'].values
-effective_labor_supply = sym.Matrix([beta * total_population])
-# total_labor_supply = sym.DeferredVector('S')
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
@@ -35,7 +22,7 @@ num_firms = sym.DeferredVector('M')
 
 class Model(object):
 
-    def __init__(self, number_cities, params, physical_distances):
+    def __init__(self, number_cities, params, physical_distances, population):
         """
         Create an instance of the Model class.
 
@@ -48,11 +35,59 @@ class Model(object):
         physical_distances : numpy.ndarray (shape=(N,N))
             Square array of pairwise measures pf physical distance between
             cities.
+        population : numpy.ndarray (shape=(N,))
+            Array of total population for each city.
 
         """
         self.N = number_cities
         self.params = params
-        self.physical_distances
+        self.physical_distances = physical_distances
+        self.population = population
+
+        # initialize cache values
+
+    @property
+    def _symbolic_equations(self):
+        """
+        List of symbolic equations defining the model.
+
+        :getter: Return the current list of model equations.
+        :type: list
+
+        """
+        # drop one equation as a result of normalization
+        equations = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
+                     [self.total_profits(h) for h in range(self.N)] +
+                     [self.labor_market_clearing(h) for h in range(self.N)] +
+                     [self.resource_constraint(h) for h in range(self.N)])
+        return equations
+
+    @property
+    def _symbolic_system(self):
+        """
+        Matrix representation of symbolic model equations.
+
+        :getter: Return the current model equations as a symbolic Matrix.
+        :type: sympy.Matrix
+
+        """
+        return sym.Matrix(self.equations)
+
+    @property
+    def _symbolic_variables(self):
+        """
+        List of symbolic endogenous variables.
+
+        :getter: Return the current list of endogenous variables.
+        :type: list
+
+        """
+        # normalize P[0] = 1.0 (so only P[1]...P[num_cities-1] are unknowns)
+        variables = ([nominal_price_level[h] for h in range(1, self.N)] +
+                     [nominal_gdp[h] for h in range(self.N)] +
+                     [nominal_wage[h] for h in range(self.N)] +
+                     [num_firms[h] for h in range(self.N)])
+        return variables
 
     @property
     def economic_distances(self):
@@ -64,6 +99,17 @@ class Model(object):
 
         """
         return np.exp(self.physical_distances)**tau
+
+    @property
+    def effective_labor_supply(self):
+        """
+        Effective labor supply is some constant multple of total population.
+
+        :getter: Return the current effective labor supply.
+        :type: sympy.Matrix
+
+        """
+        return sym.Matrix([beta * self.population])
 
     @property
     def N(self):
@@ -144,10 +190,9 @@ class Model(object):
         """Exports must balance imports for city h."""
         return cls.total_exports(h) - cls.total_imports(h)
 
-    @classmethod
-    def labor_market_clearing(cls, h):
+    def labor_market_clearing(self, h):
         """Labor market clearing condition for city h."""
-        return effective_labor_supply[h] - cls.total_labor_demand(h)
+        return self.effective_labor_supply[h] - self.total_labor_demand(h)
 
     def labor_productivity(self, h, j):
         """Productivity of labor in city h when producing good j."""
@@ -183,10 +228,9 @@ class Model(object):
         """Relative price of a good in city j."""
         return price / nominal_price_level[j]
 
-    @staticmethod
-    def resource_constraint(h):
+    def resource_constraint(self, h):
         """Nominal GDP in city h must equal nominal income in city h."""
-        return nominal_gdp[h] - effective_labor_supply[h] * nominal_wage[h]
+        return nominal_gdp[h] - self.effective_labor_supply[h] * nominal_wage[h]
 
     @staticmethod
     def revenue(price, quantity):
@@ -288,21 +332,6 @@ class Model(object):
         """
         return quantity / cls.labor_productivity(h, j)
 
-### construct the system of non-linear equilibrium conditions and its jacobian
-
-# normalize P[0] = 1.0 (so only P[1]...P[num_cities-1] are unknowns)
-endog_vars = ([nominal_price_level[h] for h in range(1, num_cities)] +
-              [nominal_gdp[h] for h in range(num_cities)] +
-              [nominal_wage[h] for h in range(num_cities)] +
-              [num_firms[h] for h in range(num_cities)])
-
-# drop one equation as a result of normalization
-equations = ([goods_market_clearing(h) for h in range(1, num_cities)] +
-             [total_profits(h) for h in range(num_cities)] +
-             [labor_market_clearing(h) for h in range(num_cities)] +
-             [resource_constraint(h) for h in range(num_cities)])
-
-symbolic_system = sym.Matrix(equations)
 #symbolic_jacobian = symbolic_system.jacobian(endog_vars)
 
 # wrap the symbolic equilibrium system and jacobian
@@ -315,3 +344,19 @@ numeric_system = sym.lambdify(args, symbolic_system,
 
 #numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
 #                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
+
+if __name__ == '__main__':
+
+    import master_data
+
+    # grab data on physical distances
+    physical_distances = np.load('../data/google/normed_vincenty_distance.npy')
+
+    # compute the effective labor supply
+    raw_data = master_data.panel.minor_xs(2010)
+    clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
+    population = clean_data['POP_MI'].values
+
+    model = Model(number_cities=1,
+                  physical_distances=physical_distances,
+                  population=population)
