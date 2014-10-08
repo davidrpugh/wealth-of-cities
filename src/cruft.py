@@ -51,12 +51,27 @@ class Model(object):
 
     @property
     def _args(self):
+        """
+        Tuple of arguments to pass to functions used for numeric evaluation of
+        model.
+
+        :getter: Return the current arguments
+        :type: tuple
+
+        """
         variables = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
         params = (f, beta, phi, tau, elasticity_substitution)
         return variables + params
 
     @property
     def _numeric_jacobian(self):
+        """
+        Vectorized function for evaluating model Jacobian.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
         if self.__numeric_jacobian is None:
             return sym.lambdify(self._args, self._symbolic_jacobian, self.modules)
         else:
@@ -64,6 +79,13 @@ class Model(object):
 
     @property
     def _numeric_system(self):
+        """
+        Vectorized function for evaluating model equations.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
         if self.__numeric_system is None:
             return sym.lambdify(self._args, self._symbolic_system, self.modules)
         else:
@@ -227,7 +249,7 @@ class Model(object):
 
     @classmethod
     def _validate_params(cls, params):
-        required_params = ['f', 'beta', 'phi', 'theta', 'tau']
+        required_params = ['f', 'beta', 'phi', 'tau']
         if not isinstance(params, dict):
             mesg = "Model.params attribute must have type dict and not {}"
             raise AttributeError(mesg.format(params.__class__))
@@ -390,10 +412,15 @@ if __name__ == '__main__':
     population = clean_data['POP_MI'].values
 
     # define some parameters
-    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-              'theta': np.repeat(10.0, 1)}
+    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05}
 
-    model = Model(number_cities=1,
+    # define some number of cities
+    N = 1
+
+    # define elatisticities
+    theta = np.repeat(10.0, N)
+
+    model = Model(number_cities=N,
                   params=params,
                   physical_distances=physical_distances,
                   population=population)
