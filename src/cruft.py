@@ -73,9 +73,10 @@ class Model(object):
 
         """
         if self.__numeric_jacobian is None:
-            return sym.lambdify(self._args, self._symbolic_jacobian, self.modules)
-        else:
-            return self.__numeric_jacobian
+            self.__numeric_jacobian = sym.lambdify(self._args,
+                                                   self._symbolic_jacobian,
+                                                   self.modules)
+        return self.__numeric_jacobian
 
     @property
     def _numeric_system(self):
@@ -87,9 +88,10 @@ class Model(object):
 
         """
         if self.__numeric_system is None:
-            return sym.lambdify(self._args, self._symbolic_system, self.modules)
-        else:
-            return self.__numeric_system
+            self.__numeric_system = sym.lambdify(self._args,
+                                                 self._symbolic_system,
+                                                 self.modules)
+        return self.__numeric_system
 
     @property
     def _symbolic_equations(self):
@@ -106,9 +108,8 @@ class Model(object):
                          [self.total_profits(h) for h in range(self.N)] +
                          [self.labor_market_clearing(h) for h in range(self.N)] +
                          [self.resource_constraint(h) for h in range(self.N)])
-            return equations
-        else:
-            return self.__symbolic_equations
+            self.__symbolic_equations = equations
+        return self.__symbolic_equations
 
     @property
     def _symbolic_jacobian(self):
@@ -120,9 +121,9 @@ class Model(object):
 
         """
         if self.__symbolic_jacobian is None:
-            return self._symbolic_system.jacobian(self._symbolic_variables)
-        else:
-            return self.__symbolic_jacobian
+            jac = self._symbolic_system.jacobian(self._symbolic_variables)
+            self.__symbolic_jacobian = jac
+        return self.__symbolic_jacobian
 
     @property
     def _symbolic_system(self):
@@ -150,9 +151,8 @@ class Model(object):
                          [nominal_gdp[h] for h in range(self.N)] +
                          [nominal_wage[h] for h in range(self.N)] +
                          [num_firms[h] for h in range(self.N)])
-            return variables
-        else:
-            return self.__symbolic_variables
+            self.__symbolic_variables = variables
+        return self.__symbolic_variables
 
     @property
     def economic_distances(self):
@@ -192,6 +192,7 @@ class Model(object):
     def N(self, value):
         """Set a new number of cities."""
         self._N = self._validate_number_cities(value)
+        self._clear_cache()
 
     @property
     def physical_distances(self):
@@ -411,14 +412,12 @@ if __name__ == '__main__':
     clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
     population = clean_data['POP_MI'].values
 
-    # define some parameters
-    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05}
-
     # define some number of cities
     N = 1
 
-    # define elatisticities
-    theta = np.repeat(10.0, N)
+    # define some parameters
+    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+              'theta': np.repeat(10.0, N)}
 
     model = Model(number_cities=N,
                   params=params,

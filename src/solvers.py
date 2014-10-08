@@ -39,32 +39,33 @@ class InitialGuess(object):
 
         :getter: Return the current arguments
         :type: tuple
+
         """
         return (P, L, f, beta, phi, tau, theta)
 
     @property
     def _numeric_gdp(self):
         if self.__numeric_gdp is None:
-            self._numeric_gdp = sym.lambdify(self._args,
-                                             self._symbolic_solution[Y],
-                                             self.modules)
-        return self._numeric_gdp
+            self.__numeric_gdp = sym.lambdify(self._args,
+                                              self._symbolic_solution[Y],
+                                              self.modules)
+        return self.__numeric_gdp
 
     @property
     def _numeric_wage(self):
         if self.__numeric_wage is None:
-            self._numeric_wage = sym.lambdify(self._args,
-                                              self._symbolic_solution[W],
-                                              self.modules)
-        return self._numeric_wage
+            self.__numeric_wage = sym.lambdify(self._args,
+                                               self._symbolic_solution[W],
+                                               self.modules)
+        return self.__numeric_wage
 
     @property
     def _numeric_num_firms(self):
         if self.__numeric_num_firms is None:
-            self._numeric_num_firms = sym.lambdify(self._args,
-                                                   self._symbolic_solution[M],
-                                                   self.modules)
-        return self._numeric_num_firms
+            self.__numeric_num_firms = sym.lambdify(self._args,
+                                                    self._symbolic_solution[M],
+                                                    self.modules)
+        return self.__numeric_num_firms
 
     @property
     def _symbolic_equations(self):
@@ -95,9 +96,9 @@ class InitialGuess(object):
 
         """
         if self.__symbolic_solution is None:
-            self.__symbolic_solution = sym.solve(self._symbolic_equations,
-                                                 Y, W, M, dict=True)
-        self.__symbolic_solution
+            self.__symbolic_solution, = sym.solve(self._symbolic_equations,
+                                                  Y, W, M, dict=True)
+        return self.__symbolic_solution
 
     @property
     def guess(self):
@@ -200,7 +201,7 @@ class Solver(object):
         """
         # solve for the model equilibrium
         result = optimize.root(self.system,
-                               x0=self.initial_guess,
+                               x0=self.initial_guess.guess,
                                jac=self.jacobian,
                                method=method,
                                **kwargs
@@ -212,7 +213,6 @@ if __name__ == '__main__':
 
     from cruft import Model
     import master_data
-    from test_model import get_initial_guess
 
     # grab data on physical distances
     physical_distances = np.load('../data/google/normed_vincenty_distance.npy')
@@ -223,7 +223,7 @@ if __name__ == '__main__':
     population = clean_data['POP_MI'].values
 
     # define some number of cities
-    N = 1
+    N = 10
 
     # define some parameters
     params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
@@ -235,8 +235,6 @@ if __name__ == '__main__':
                   population=population)
 
     solver = Solver(model)
-
-    initial_guess = get_initial_guess(N, **model.params)
 
     result = solver.solve(method='hybr', tol=1e-6)
 
