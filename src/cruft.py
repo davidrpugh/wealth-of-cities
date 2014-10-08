@@ -37,7 +37,22 @@ nominal_wage = sym.DeferredVector('W')
 num_firms = sym.DeferredVector('M')
 
 
-class Model():
+class Model(object):
+
+    def __init__(self, number_cities, params):
+        """
+        Create an instance of the Model class.
+
+        Parameters
+        ----------
+        number_cities : int
+            Number of cities in the economy.
+        params : dict
+            Dictionary of model parameters.
+
+        """
+        self.N = number_cities
+        self.params = params
 
     @classmethod
     def goods_market_clearing(cls, h):
