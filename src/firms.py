@@ -1,3 +1,0 @@
-class Firm(object):
-
-    params = {}

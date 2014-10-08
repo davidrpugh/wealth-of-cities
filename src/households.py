@@ -1,3 +1,0 @@
-class Household(object):
-
-    params = {}
