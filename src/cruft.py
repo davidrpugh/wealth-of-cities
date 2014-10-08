@@ -3,7 +3,7 @@ Code for generating the symbolic equations which define the equilibrium of our
 model.
 
 @author : David R. Pugh
-@date : 2014-10-06
+@date : 2014-10-08
 
 """
 import numpy as np
@@ -47,12 +47,7 @@ class Model(object):
         self.population = population
 
         # initialize cache values
-        self.__numeric_jacobian = None
-        self.__numeric_system = None
-        self.__symbolic_equations = None
-        self.__symbolic_jacobian = None
-        self.__symbolic_system = None
-        self.__symbolic_variables = None
+        self._clear_cache()
 
     @property
     def _args(self):
@@ -116,7 +111,7 @@ class Model(object):
         :type: sympy.Matrix
 
         """
-        return sym.Matrix(self.equations)
+        return sym.Matrix(self._symbolic_equations)
 
     @property
     def _symbolic_variables(self):
@@ -191,7 +186,7 @@ class Model(object):
     @physical_distances.setter
     def physical_distances(self, array):
         """Set a new array of physical distances."""
-        self._physical_distance = array
+        self._physical_distances = array
 
     @property
     def params(self):
@@ -210,6 +205,15 @@ class Model(object):
         """Set a new parameter dictionary."""
         self._params = self._validate_params(value)
 
+    def _clear_cache(self):
+        """Clear all cached values."""
+        self.__numeric_jacobian = None
+        self.__numeric_system = None
+        self.__symbolic_equations = None
+        self.__symbolic_jacobian = None
+        self.__symbolic_system = None
+        self.__symbolic_variables = None
+
     @classmethod
     def _validate_number_cities(cls, value):
         if not isinstance(value, int):
@@ -227,16 +231,15 @@ class Model(object):
         if not isinstance(params, dict):
             mesg = "Model.params attribute must have type dict and not {}"
             raise AttributeError(mesg.format(params.__class__))
-        elif not set(required_params) < set(params.keys()):
+        elif not set(required_params) <= set(params.keys()):
             mesg = "Parameter dictionary must specify values for each of {}"
             raise AttributeError(mesg.format(required_params))
         else:
             return params
 
-    @classmethod
-    def goods_market_clearing(cls, h):
+    def goods_market_clearing(self, h):
         """Exports must balance imports for city h."""
-        return cls.total_exports(h) - cls.total_imports(h)
+        return self.total_exports(h) - self.total_imports(h)
 
     def labor_market_clearing(self, h):
         """Labor market clearing condition for city h."""
@@ -246,20 +249,18 @@ class Model(object):
         """Productivity of labor in city h when producing good j."""
         return phi / self.economic_distances[h, j]
 
-    @classmethod
-    def marginal_costs(cls, h, j):
+    def marginal_costs(self, h, j):
         """Marginal costs of production of good j in city h."""
-        return nominal_wage[h] / cls.labor_productivity(h, j)
+        return nominal_wage[h] / self.labor_productivity(h, j)
 
     @staticmethod
     def mark_up(j):
         """Markup over marginal costs of production for good j."""
         return (elasticity_substitution[j] / (elasticity_substitution[j] - 1))
 
-    @classmethod
-    def optimal_price(cls, h, j):
+    def optimal_price(self, h, j):
         """Optimal price of good j sold in city h."""
-        return cls.mark_up(j) * cls.marginal_costs(h, j)
+        return self.mark_up(j) * self.marginal_costs(h, j)
 
     @classmethod
     def quantity_demand(cls, price, j):
@@ -285,10 +286,9 @@ class Model(object):
         """Revenue from producing a certain quantity at a given price."""
         return price * quantity
 
-    @classmethod
-    def total_cost(cls, h):
+    def total_cost(self, h):
         """Total cost of production for a firm in city h."""
-        return cls.total_variable_cost(h) + cls.total_fixed_cost(h)
+        return self.total_variable_cost(h) + self.total_fixed_cost(h)
 
     def total_exports(self, h):
         """Total exports of various goods from city h."""
@@ -322,15 +322,13 @@ class Model(object):
 
         return sum(individual_imports)
 
-    @classmethod
-    def total_labor_demand(cls, h):
+    def total_labor_demand(self, h):
         """Total demand for labor for firms in city h."""
-        return cls.total_variable_labor_demand(h) + cls.total_fixed_labor_demand(h)
+        return self.total_variable_labor_demand(h) + self.total_fixed_labor_demand(h)
 
-    @classmethod
-    def total_profits(cls, h):
+    def total_profits(self, h):
         """Total profits for a firm in city h."""
-        return cls.total_revenue(h) - cls.total_cost(h)
+        return self.total_revenue(h) - self.total_cost(h)
 
     def total_revenue(self, h):
         """Total revenue for a firm producing in city h."""
@@ -362,23 +360,21 @@ class Model(object):
 
         return num_firms[h] * sum(individual_labor_demands)
 
-    @classmethod
-    def variable_cost(cls, quantity, h, j):
+    def variable_cost(self, quantity, h, j):
         """
         Variable cost of a firm in city h to produce a given quantity of good
         for sale in city j.
 
         """
-        return cls.variable_labor_demand(quantity, h, j) * nominal_wage[h]
+        return self.variable_labor_demand(quantity, h, j) * nominal_wage[h]
 
-    @classmethod
-    def variable_labor_demand(cls, quantity, h, j):
+    def variable_labor_demand(self, quantity, h, j):
         """
         Variable labor demand by firm in city h to produce a given quantity of
         good for sale in city j.
 
         """
-        return quantity / cls.labor_productivity(h, j)
+        return quantity / self.labor_productivity(h, j)
 
 
 if __name__ == '__main__':
@@ -393,6 +389,11 @@ if __name__ == '__main__':
     clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
     population = clean_data['POP_MI'].values
 
+    # define some parameters
+    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+              'theta': np.repeat(10.0, 1)}
+
     model = Model(number_cities=1,
+                  params=params,
                   physical_distances=physical_distances,
                   population=population)
