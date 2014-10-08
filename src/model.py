@@ -12,7 +12,7 @@ import sympy as sym
 import master_data
 
 # define the number of cities
-num_cities = 300
+num_cities = 1
 
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')

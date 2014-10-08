@@ -13,13 +13,12 @@ import model
 import physical_distance
 import sandbox
 
-
 # specify some parameter values
-fixed_costs = np.logspace(-2, 2, 7)
+fixed_costs = np.logspace(-2, 2, 5)
 scaling_factors = np.logspace(-2, 2, 7)
 productivities = np.logspace(-2, 2, 7)
 iceberg_costs = np.logspace(-2, 2, 7)
-elasticities = np.logspace(2e-1, 2, 7)
+elasticities = np.logspace(3e-1, 2, 7)
 
 
 def test_residual():
@@ -43,7 +42,6 @@ def test_residual():
 
                         np.testing.assert_almost_equal(expected_residual,
                                                        actual_residual,
-                                                       err_msg=tmp_params.__str__(),
                                                        verbose=True)
 
 
