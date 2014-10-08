@@ -54,6 +54,34 @@ class Model(object):
         self.N = number_cities
         self.params = params
 
+    @property
+    def params(self):
+        """
+        Dictionary of model parameters.
+
+        :getter: Return the current parameter dictionary.
+        :setter: Set a new parameter dictionary.
+        :type: dict
+
+        """
+        return self._params
+
+    @params.setter
+    def params(self, value):
+        """Set a new parameter dictionary."""
+        self._params = self._validate_params(value)
+
+    def _validate_params(cls, params):
+        required_params = ['f', 'beta', 'phi', 'theta', 'tau']
+        if not isinstance(params, dict):
+            mesg = "Model.params attribute must have type dict and not {}"
+            raise AttributeError(mesg.format(params.__class__))
+        elif not set(required_params) < set(params.keys()):
+            mesg = "Parameter dictionary must specify values for each of {}"
+            raise AttributeError(mesg.format(required_params))
+        else:
+            return params
+
     @classmethod
     def goods_market_clearing(cls, h):
         """Exports must balance imports for city h."""
