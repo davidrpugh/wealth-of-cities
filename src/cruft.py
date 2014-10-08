@@ -45,6 +45,9 @@ class Model(object):
             Number of cities in the economy.
         params : dict
             Dictionary of model parameters.
+        physical_distances : numpy.ndarray (shape=(N,N))
+            Square array of pairwise measures pf physical distance between
+            cities.
 
         """
         self.N = number_cities
@@ -53,6 +56,13 @@ class Model(object):
 
     @property
     def economic_distances(self):
+        """
+        Square matrix of pairwise measures of economic distance between cities.
+
+        :getter: Return the matrix of economic distances.
+        :type: sympy.Basic
+
+        """
         return np.exp(self.physical_distances)**tau
 
     @property
@@ -74,10 +84,19 @@ class Model(object):
 
     @property
     def physical_distances(self):
+        """
+        Square array of pairwise measures pf physical distance between cities.
+
+        :getter: Return the current array of physical distances.
+        :setter: Set a new array of physical distances.
+        :type: numpy.ndarray
+
+        """
         return self._physical_distances[:self.N, :self.N]
 
     @physical_distances.setter
     def physical_distances(self, array):
+        """Set a new array of physical distances."""
         self._physical_distance = array
 
     @property
