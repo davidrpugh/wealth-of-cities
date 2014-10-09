@@ -223,7 +223,7 @@ class Solver(object):
         # solve for the model equilibrium
         result = optimize.root(self.system,
                                x0=self.initial_guess.guess,
-                               jac=self.jacobian,
+                               #jac=self.jacobian,
                                method=method,
                                **kwargs
                                )
@@ -232,7 +232,7 @@ class Solver(object):
 
 if __name__ == '__main__':
 
-    from cruft import Model
+    from model import Model
     import master_data
 
     # grab data on physical distances
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     population = clean_data['POP_MI'].values
 
     # define some number of cities
-    N = 10
+    N = 50
 
     # define some parameters
     params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
