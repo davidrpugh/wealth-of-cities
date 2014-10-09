@@ -8,7 +8,7 @@ Test suite for the model.py module.
 import nose
 import numpy as np
 
-from cruft import Model
+from model import Model
 import master_data
 import solvers
 
