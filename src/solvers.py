@@ -45,6 +45,13 @@ class InitialGuess(object):
 
     @property
     def _numeric_gdp(self):
+        """
+        Vectorized function for evaluating solution for nominal GDP.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
         if self.__numeric_gdp is None:
             self.__numeric_gdp = sym.lambdify(self._args,
                                               self._symbolic_solution[Y],
@@ -53,6 +60,13 @@ class InitialGuess(object):
 
     @property
     def _numeric_wage(self):
+        """
+        Vectorized function for evaluating solution for nominal wage.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
         if self.__numeric_wage is None:
             self.__numeric_wage = sym.lambdify(self._args,
                                                self._symbolic_solution[W],
@@ -61,6 +75,13 @@ class InitialGuess(object):
 
     @property
     def _numeric_num_firms(self):
+        """
+        Vectorized function for evaluating solution for nominal number of firms.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
         if self.__numeric_num_firms is None:
             self.__numeric_num_firms = sym.lambdify(self._args,
                                                     self._symbolic_solution[M],
