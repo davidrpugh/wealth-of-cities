@@ -192,6 +192,8 @@ class Model(object):
     def N(self, value):
         """Set a new number of cities."""
         self._N = self._validate_number_cities(value)
+
+        # don't forget to clear cache!
         self._clear_cache()
 
     @property
