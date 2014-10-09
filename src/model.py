@@ -1,6 +1,5 @@
 """
-Code for generating the symbolic equations which define the equilibrium of our
-model.
+Main classes representing the model.
 
 @author : David R. Pugh
 @date : 2014-10-08
@@ -52,8 +51,7 @@ class Model(object):
     @property
     def _args(self):
         """
-        Tuple of arguments to pass to functions used for numeric evaluation of
-        model.
+        Arguments to pass to functions used for numeric evaluation of model.
 
         :getter: Return the current arguments
         :type: tuple
@@ -66,7 +64,7 @@ class Model(object):
     @property
     def _numeric_jacobian(self):
         """
-        Vectorized function for evaluating model Jacobian.
+        Vectorized function for numeric evaluation of model Jacobian.
 
         :getter: Return the current function.
         :type: function
@@ -81,7 +79,7 @@ class Model(object):
     @property
     def _numeric_system(self):
         """
-        Vectorized function for evaluating model equations.
+        Vectorized function for numeric evaluation of model equations.
 
         :getter: Return the current function.
         :type: function
@@ -104,17 +102,17 @@ class Model(object):
         """
         if self.__symbolic_equations is None:
             # drop one equation as a result of normalization
-            equations = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
-                         [self.total_profits(h) for h in range(self.N)] +
-                         [self.labor_market_clearing(h) for h in range(self.N)] +
-                         [self.resource_constraint(h) for h in range(self.N)])
-            self.__symbolic_equations = equations
+            eqns = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
+                    [self.total_profits(h) for h in range(self.N)] +
+                    [self.labor_market_clearing(h) for h in range(self.N)] +
+                    [self.resource_constraint(h) for h in range(self.N)])
+            self.__symbolic_equations = eqns
         return self.__symbolic_equations
 
     @property
     def _symbolic_jacobian(self):
         """
-        Matrix representation of Jacobian matrix of partial derivatives.
+        Symbolic representation of Jacobian matrix of partial derivatives.
 
         :getter: Return the current Jacobian matrix.
         :type: sympy.Matrix
@@ -168,7 +166,7 @@ class Model(object):
     @property
     def effective_labor_supply(self):
         """
-        Effective labor supply is some constant multple of total population.
+        Effective labor supply is a constant multple of total population.
 
         :getter: Return the current effective labor supply.
         :type: sympy.Matrix
@@ -241,6 +239,7 @@ class Model(object):
 
     @classmethod
     def _validate_number_cities(cls, value):
+        """Validate number of cities, N, attribute."""
         if not isinstance(value, int):
             mesg = "Model.N attribute must have type int and not {}"
             raise AttributeError(mesg.format(value.__class__))
@@ -252,6 +251,7 @@ class Model(object):
 
     @classmethod
     def _validate_params(cls, params):
+        """Validate params attribute."""
         required_params = ['f', 'beta', 'phi', 'tau']
         if not isinstance(params, dict):
             mesg = "Model.params attribute must have type dict and not {}"
@@ -289,7 +289,7 @@ class Model(object):
 
     @classmethod
     def quantity_demand(cls, price, j):
-        """Quantity demanded of a good in city j depends negatively on its price."""
+        """Quantity demand of a good is negative function of price."""
         return cls.relative_price(price, j)**(-elasticity_substitution[j]) * cls.real_gdp(j)
 
     @staticmethod
@@ -304,7 +304,9 @@ class Model(object):
 
     def resource_constraint(self, h):
         """Nominal GDP in city h must equal nominal income in city h."""
-        return nominal_gdp[h] - self.effective_labor_supply[h] * nominal_wage[h]
+        constraint = (nominal_gdp[h] -
+                      self.effective_labor_supply[h] * nominal_wage[h])
+        return constraint
 
     @staticmethod
     def revenue(price, quantity):
@@ -349,7 +351,9 @@ class Model(object):
 
     def total_labor_demand(self, h):
         """Total demand for labor for firms in city h."""
-        return self.total_variable_labor_demand(h) + self.total_fixed_labor_demand(h)
+        total_demand = (self.total_variable_labor_demand(h) +
+                        self.total_fixed_labor_demand(h))
+        return total_demand
 
     def total_profits(self, h):
         """Total profits for a firm in city h."""
@@ -381,7 +385,8 @@ class Model(object):
         for j in range(self.N):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
-            individual_labor_demands.append(self.variable_labor_demand(q_star, h, j))
+            variable_demand_h = self.variable_labor_demand(q_star, h, j)
+            individual_labor_demands.append(variable_demand_h)
 
         return num_firms[h] * sum(individual_labor_demands)
 
