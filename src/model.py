@@ -405,28 +405,3 @@ class Model(object):
 
         """
         return quantity / self.labor_productivity(h, j)
-
-
-if __name__ == '__main__':
-
-    import master_data
-
-    # grab data on physical distances
-    physical_distances = np.load('../data/google/normed_vincenty_distance.npy')
-
-    # compute the effective labor supply
-    raw_data = master_data.panel.minor_xs(2010)
-    clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
-    population = clean_data['POP_MI'].values
-
-    # define some number of cities
-    N = 1
-
-    # define some parameters
-    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-              'theta': np.repeat(10.0, N)}
-
-    model = Model(number_cities=N,
-                  params=params,
-                  physical_distances=physical_distances,
-                  population=population)

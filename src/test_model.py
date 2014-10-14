@@ -2,7 +2,7 @@
 Test suite for the model.py module.
 
 @author : David R. Pugh
-@date : 2014-10-02
+@date : 2014-10-08
 
 """
 import nose
@@ -74,3 +74,46 @@ def test_balance_trade():
         expected_trade_balance = 0
 
         nose.tools.assert_equals(actual_trade_balance, expected_trade_balance)
+
+
+def test_validate_num_cities():
+    """Testing validation method for num_cities attribute."""
+    # num_cities must be an integer...
+    invalid_num_cities = 1.0
+
+    with nose.tools.assert_raises(AttributeError):
+        Model(number_cities=invalid_num_cities,
+              params=params,
+              physical_distances=physical_distances,
+              population=population)
+
+    # ...greater or equal to 1
+    invalid_num_cities = 0
+
+    with nose.tools.assert_raises(AttributeError):
+        Model(number_cities=invalid_num_cities,
+              params=params,
+              physical_distances=physical_distances,
+              population=population)
+
+
+def test_validate_params():
+    """Testing validation method for params attribute."""
+    # params must be a dict
+    invalid_params = (1.0, 1.31, 1.0 / 1.31, 0.05, np.repeat(10.0, N))
+
+    with nose.tools.assert_raises(AttributeError):
+        Model(number_cities=10,
+              params=invalid_params,
+              physical_distances=physical_distances,
+              population=population)
+
+    # ...and provide values for all required params
+    invalid_params = {'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+                      'theta': np.repeat(10.0, N)}
+
+    with nose.tools.assert_raises(AttributeError):
+        Model(number_cities=15,
+              params=invalid_params,
+              physical_distances=physical_distances,
+              population=population)
