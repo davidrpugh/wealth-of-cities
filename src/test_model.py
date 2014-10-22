@@ -20,26 +20,12 @@ raw_data = master_data.panel.minor_xs(2010)
 clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
 population = clean_data['POP_MI'].values
 
-# define some number of cities
-N = 1
-
-# define some parameters
-params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-          'theta': np.repeat(10.0, N)}
-
-model = Model(number_cities=N,
-              params=params,
-              physical_distances=physical_distances,
-              population=population)
-
-solver = solvers.Solver(model)
-
 # specify some parameter values
-fixed_costs = np.logspace(-2, 2, 7)
-scaling_factors = np.logspace(-2, 2, 7)
-productivities = np.logspace(-2, 2, 7)
-iceberg_costs = np.logspace(-2, 2, 7)
-elasticities = np.logspace(3e-1, 2, 7)
+fixed_costs = np.logspace(-2, 2, 2)
+scaling_factors = np.logspace(-2, 2, 2)
+productivities = np.logspace(-2, 2, 2)
+iceberg_costs = np.logspace(-2, 2, 2)
+elasticities = np.logspace(3e-1, 2, 2)
 
 
 def test_residual():
@@ -56,11 +42,17 @@ def test_residual():
                                       'tau': iceberg_cost,
                                       'theta': np.array([elasticity])
                                       }
-                        model.params = tmp_params
+
+                        tmp_model = Model(number_cities=1,
+                                          params=tmp_params,
+                                          physical_distances=physical_distances,
+                                          population=population)
+
+                        tmp_solver = solvers.Solver(tmp_model)
 
                         expected_residual = np.zeros(3)
-                        X0 = solver.initial_guess.guess
-                        actual_residual = solver.system(X0)
+                        X0 = tmp_solver.initial_guess.guess
+                        actual_residual = tmp_solver.system(X0)
 
                         np.testing.assert_almost_equal(expected_residual,
                                                        actual_residual,
@@ -69,6 +61,14 @@ def test_residual():
 
 def test_balance_trade():
     """Testing that exports balance imports."""
+    # define some parameters
+    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+              'theta': np.repeat(10.0, 1)}
+    model = Model(number_cities=1,
+                  params=params,
+                  physical_distances=physical_distances,
+                  population=population)
+
     for h in range(model.N):
         actual_trade_balance = model.goods_market_clearing(h)
         expected_trade_balance = 0
@@ -81,9 +81,12 @@ def test_validate_num_cities():
     # num_cities must be an integer...
     invalid_num_cities = 1.0
 
+    valid_params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+                    'theta': np.repeat(10.0, 1)}
+
     with nose.tools.assert_raises(AttributeError):
         Model(number_cities=invalid_num_cities,
-              params=params,
+              params=valid_params,
               physical_distances=physical_distances,
               population=population)
 
@@ -92,7 +95,7 @@ def test_validate_num_cities():
 
     with nose.tools.assert_raises(AttributeError):
         Model(number_cities=invalid_num_cities,
-              params=params,
+              params=valid_params,
               physical_distances=physical_distances,
               population=population)
 
@@ -100,7 +103,7 @@ def test_validate_num_cities():
 def test_validate_params():
     """Testing validation method for params attribute."""
     # params must be a dict
-    invalid_params = (1.0, 1.31, 1.0 / 1.31, 0.05, np.repeat(10.0, N))
+    invalid_params = (1.0, 1.31, 1.0 / 1.31, 0.05, np.repeat(10.0, 1))
 
     with nose.tools.assert_raises(AttributeError):
         Model(number_cities=10,
@@ -110,7 +113,7 @@ def test_validate_params():
 
     # ...and provide values for all required params
     invalid_params = {'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-                      'theta': np.repeat(10.0, N)}
+                      'theta': np.repeat(10.0, 1)}
 
     with nose.tools.assert_raises(AttributeError):
         Model(number_cities=15,

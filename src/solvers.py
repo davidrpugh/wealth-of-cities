@@ -4,12 +4,6 @@ import sympy as sym
 
 import models
 
-# define variables
-L, M, P, W, Y = sym.var('L, M, P, W, Y')
-
-# define parameters
-f, beta, phi, tau, theta = sym.var('f, beta, phi, tau, theta')
-
 
 class InitialGuess(object):
 
@@ -170,7 +164,9 @@ class Solver(object):
         Y = X[self.model.N-1:2 * self.model.N-1]
         W = X[2 * self.model.N-1:3 * self.model.N-1]
         M = X[3 * self.model.N-1:]
-        residual = self._numeric_system(P, Y, W, M, self.model.population, **self.model.params)
+        residual = self._numeric_system(P, Y, W, M,
+                                        self.model.population,
+                                        **self.model.params)
         return residual.ravel()
 
     def jacobian(self, X):
@@ -194,7 +190,9 @@ class Solver(object):
         W = X[2 * self.model.N-1:3 * self.model.N-1]
         M = X[3 * self.model.N-1:]
 
-        jac = self._numeric_jacobian(P, Y, W, M, self.model.population, **self.model.params)
+        jac = self._numeric_jacobian(P, Y, W, M,
+                                     self.model.population,
+                                     **self.model.params)
 
         return jac
 
