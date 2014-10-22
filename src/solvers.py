@@ -76,7 +76,7 @@ class InitialGuess(object):
     @property
     def _numeric_num_firms(self):
         """
-        Vectorized function for evaluating solution for nominal number of firms.
+        Vectorized function for evaluating solution for number of firms.
 
         :getter: Return the current function.
         :type: function
@@ -206,7 +206,7 @@ class Solver(object):
 
         return jac
 
-    def solve(self, method, **kwargs):
+    def solve(self, method, with_jacobian=True, **kwargs):
         """
         Solve the system of non-linear equations describing the equilibrium.
 
@@ -220,47 +220,16 @@ class Solver(object):
         result :
 
         """
+        if with_jacobian:
+            jacobian = self.jacobian
+        else:
+            jacobian = False
+
         # solve for the model equilibrium
         result = optimize.root(self.system,
                                x0=self.initial_guess.guess,
-                               #jac=self.jacobian,
+                               jac=jacobian,
                                method=method,
                                **kwargs
                                )
         return result
-
-
-if __name__ == '__main__':
-
-    from model import Model
-    import master_data
-
-    # grab data on physical distances
-    physical_distances = np.load('../data/google/normed_vincenty_distance.npy')
-
-    # compute the effective labor supply
-    raw_data = master_data.panel.minor_xs(2010)
-    clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
-    population = clean_data['POP_MI'].values
-
-    # define some number of cities
-    N = 50
-
-    # define some parameters
-    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-              'theta': np.repeat(10.0, N)}
-
-    model = Model(number_cities=N,
-                  params=params,
-                  physical_distances=physical_distances,
-                  population=population)
-
-    solver = Solver(model)
-
-    result = solver.solve(method='hybr', tol=1e-6)
-
-    print("Solution converged? {}".format(result.success))
-    print("Equilibrium nominal price levels:\n{}".format(result.x[:N-1]))
-    print("Equilibrium nominal GDP:\n{}".format(result.x[N-1:2 * N-1]))
-    print("Equilibrium nominal wages:\n{}".format(result.x[2 * N-1:3 * N-1]))
-    print("Equilibrium number of firms:\n{}".format(result.x[3 * N-1:]))

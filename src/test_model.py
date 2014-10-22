@@ -7,6 +7,7 @@ Test suite for the model.py module.
 """
 import nose
 import numpy as np
+from scipy import linalg
 
 from model import Model
 import master_data
@@ -117,3 +118,27 @@ def test_validate_params():
               params=invalid_params,
               physical_distances=physical_distances,
               population=population)
+
+
+def test_compare_jacobians():
+    """Testing that results using finite diff approx and symbolic jacobians are similar."""
+    # define some number of cities
+    N = 10
+
+    # define some parameters
+    params = {'f': 1.0, 'beta': 3.0, 'phi': 1.0 / 3.0, 'tau': 0.15,
+              'theta': np.repeat(10.0, N)}
+
+    model = Model(number_cities=N,
+                  params=params,
+                  physical_distances=physical_distances,
+                  population=population)
+
+    # check that solutions are the same for approx and exact jacobian
+    solver = solvers.Solver(model)
+    approx_jac = solver.solve(method='hybr', tol=1e-12, with_jacobian=False,
+                              options={'eps': 1e-15})
+
+    exact_jac = solver.solve(method='hybr', tol=1e-12, with_jacobian=True)
+
+    np.testing.assert_almost_equal(approx_jac.x, exact_jac.x)
