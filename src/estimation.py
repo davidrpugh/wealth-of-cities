@@ -97,15 +97,6 @@ def _solve_model(f, beta, phi, tau, theta):
         raise ValueError
 
 
-def nlls_objective(params):
-    """Objective function for non-linear least squares parameter estimation."""
-    actual_GDP = clean_data['GDP_MP']
-    predicted_GDP = _solve_model(1.0, **params)
-    residual = actual_GDP - predicted_GDP
-    obj = np.sum(residual**2)
-    return obj
-
-
 class Estimator(object):
 
     def __init__(self, solver, data):
@@ -116,14 +107,14 @@ class Estimator(object):
         ----------
         solver : solvers.Solver
             An instance of the solvers.Solver class.
-        data : pandas.Panel
-            An instance of the pandas.Panel class.
+        data : pandas.DataFrame
+            An instance of the pandas.DataFrame class.
 
         """
         self.data = data
         self.solver = solver
 
-    def objective(params):
+    def objective(self, params):
         raise NotImplementedError
 
     def estimate(self, method, **kwargs):
@@ -150,3 +141,14 @@ class Estimator(object):
                                    method=method,
                                    **kwargs)
         return result
+
+
+class NLLS(Estimator):
+
+    def objective(self, params, **kwargs):
+        """Quick pass at a weighted NLLS objective function."""
+        actual_GDP = self.data['GDP_MP']
+        predicted_GDP = self.solver.solve(**kwargs)
+        residual = actual_GDP - predicted_GDP
+        obj = np.sum(residual**2)
+        return obj
