@@ -49,11 +49,10 @@ def test_residual():
                                           population=population)
 
                         tmp_solver = solvers.Solver(tmp_model)
+                        tmp_initial_guess = solvers.IslandsGuess(tmp_model)
 
                         expected_residual = np.zeros(3)
-                        X0 = tmp_solver.initial_guess.guess
-                        actual_residual = tmp_solver.system(X0)
-
+                        actual_residual = tmp_solver.system(tmp_initial_guess.guess)
                         np.testing.assert_almost_equal(expected_residual,
                                                        actual_residual,
                                                        verbose=True)
@@ -138,9 +137,11 @@ def test_compare_jacobians():
 
     # check that solutions are the same for approx and exact jacobian
     solver = solvers.Solver(model)
-    approx_jac = solver.solve(method='hybr', tol=1e-12, with_jacobian=False,
-                              options={'eps': 1e-15})
+    initial_guess = solvers.IslandsGuess(model)
+    approx_jac = solver.solve(initial_guess.guess, method='hybr', tol=1e-12,
+                              with_jacobian=False, options={'eps': 1e-15})
 
-    exact_jac = solver.solve(method='hybr', tol=1e-12, with_jacobian=True)
+    exact_jac = solver.solve(initial_guess.guess, method='hybr', tol=1e-12,
+                             with_jacobian=True)
 
     np.testing.assert_almost_equal(approx_jac.x, exact_jac.x)

@@ -7,6 +7,8 @@ import models
 
 class InitialGuess(object):
 
+    __city = None
+
     def __init__(self, model):
         """
         Create an instance of the InitialGuess class.
@@ -18,22 +20,6 @@ class InitialGuess(object):
 
         """
         self.model = model
-
-    @property
-    def guess(self):
-        """
-        The initial guess for the model equilibrium.
-
-        :getter: Return current initial guess.
-        :type: numpy.ndarray
-
-        """
-        raise NotImplementedError
-
-
-class IslandsGuess(InitialGuess):
-
-    __city = None
 
     @property
     def city(self):
@@ -55,6 +41,53 @@ class IslandsGuess(InitialGuess):
                                                  population)
 
         return self.__city
+
+    @property
+    def guess(self):
+        """
+        The initial guess for the model equilibrium.
+
+        :getter: Return current initial guess.
+        :type: numpy.ndarray
+
+        """
+        raise NotImplementedError
+
+
+class IslandsGuess(InitialGuess):
+
+    @property
+    def guess(self):
+        """
+        The initial guess for the model equilibrium.
+
+        :getter: Return current initial guess.
+        :type: numpy.ndarray
+
+        """
+        # initial guess for price levels
+        P0 = np.repeat(1.0, self.model.N-1)
+
+        # initial guess for nominal gdp, wages, and number of firms
+        Y0 = np.empty(self.model.N)
+        W0 = np.empty(self.model.N)
+        M0 = np.empty(self.model.N)
+
+        for h, population in enumerate(self.city.population[:self.model.N]):
+            Y0[h] = self.city.compute_nominal_gdp(np.ones(1.0),
+                                                  np.array([population]),
+                                                  self.city.params)
+            W0[h] = self.city.compute_nominal_wage(np.ones(1.0),
+                                                   np.array([population]),
+                                                   self.city.params)
+            M0[h] = self.city.compute_number_firms(np.ones(1.0),
+                                                   np.array([population]),
+                                                   self.city.params)
+
+        return np.hstack((P0, Y0, W0, M0))
+
+
+class HotStartGuess(InitialGuess):
 
     @property
     def guess(self):
@@ -105,9 +138,6 @@ class Solver(object):
 
         """
         self.model = model
-
-        # create an instance of the InitialGuess class
-        self.initial_guess = IslandsGuess(model)
 
     def _clear_cache(self):
         """Clear all cached values."""
@@ -196,12 +226,13 @@ class Solver(object):
 
         return jac
 
-    def solve(self, method='hybr', with_jacobian=True, **kwargs):
+    def solve(self, initial_guess, method='hybr', with_jacobian=True, **kwargs):
         """
         Solve the system of non-linear equations describing the equilibrium.
 
         Parameters
         ----------
+        guess : numpy.ndarray
         method : str (default='hybr')
             Valid method used to find the root of the non-linear system. See
             scipy.optimize.root for a complete list of valid methods.
@@ -225,7 +256,7 @@ class Solver(object):
 
         # solve for the model equilibrium
         result = optimize.root(self.system,
-                               x0=self.initial_guess.guess,
+                               x0=initial_guess,
                                jac=jacobian,
                                method=method,
                                **kwargs
