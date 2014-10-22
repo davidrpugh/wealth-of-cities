@@ -2,6 +2,8 @@ import numpy as np
 from scipy import optimize
 import sympy as sym
 
+import models
+
 # define variables
 L, M, P, W, Y = sym.var('L, M, P, W, Y')
 
@@ -11,115 +13,17 @@ f, beta, phi, tau, theta = sym.var('f, beta, phi, tau, theta')
 
 class InitialGuess(object):
 
-    # initialize cached values
-    __numeric_gdp = None
-    __numeric_num_firms = None
-    __numeric_wage = None
-    __symbolic_solution = None
-
-    _modules = [{'ImmutableMatrix': np.array}, "numpy"]
-
-    def __init__(self, solver):
+    def __init__(self, model):
         """
         Create an instance of the InitialGuess class.
 
         Parameters
         ----------
-        solver : solvers.Solver
-            An instance of the solvers.Solver class.
+        model : models.Model
+            An instance of the models.Model class.
 
         """
-        self.solver = solver
-
-    @property
-    def _args(self):
-        """
-        Tuple of arguments to pass to functions used for numeric evaluation of
-        symbolic solution.
-
-        :getter: Return the current arguments
-        :type: tuple
-
-        """
-        return (P, L, f, beta, phi, tau, theta)
-
-    @property
-    def _numeric_gdp(self):
-        """
-        Vectorized function for evaluating solution for nominal GDP.
-
-        :getter: Return the current function.
-        :type: function
-
-        """
-        if self.__numeric_gdp is None:
-            self.__numeric_gdp = sym.lambdify(self._args,
-                                              self._symbolic_solution[Y],
-                                              self._modules)
-        return self.__numeric_gdp
-
-    @property
-    def _numeric_wage(self):
-        """
-        Vectorized function for evaluating solution for nominal wage.
-
-        :getter: Return the current function.
-        :type: function
-
-        """
-        if self.__numeric_wage is None:
-            self.__numeric_wage = sym.lambdify(self._args,
-                                               self._symbolic_solution[W],
-                                               self._modules)
-        return self.__numeric_wage
-
-    @property
-    def _numeric_num_firms(self):
-        """
-        Vectorized function for evaluating solution for number of firms.
-
-        :getter: Return the current function.
-        :type: function
-
-        """
-        if self.__numeric_num_firms is None:
-            self.__numeric_num_firms = sym.lambdify(self._args,
-                                                    self._symbolic_solution[M],
-                                                    self._modules)
-        return self.__numeric_num_firms
-
-    @property
-    def _symbolic_equations(self):
-        """
-        List of symbolic equations defining a model with a single city.
-
-        :getter: Return the current list of model equations.
-        :type: list
-
-        """
-        # define model equations using derivation from paper
-        eqn1 = ((1 / (theta - 1)) * ((theta / (theta - 1)) * (1 / phi))**-theta *
-                (W / P)**-theta * (Y / P) - phi * f)
-        eqn2 = (beta * L - (M / phi) * (theta / (theta - 1)) * ((theta / (theta - 1)) *
-                (1 / phi))**-theta * (W / P)**-theta * (Y / P))
-        eqn3 = Y - beta * L * W
-
-        return [eqn1, eqn2, eqn3]
-
-    @property
-    def _symbolic_solution(self):
-        """
-        Dictionary of symbolic expressions for analytic solution to the single
-        city model.
-
-        :getter: Return the analytic solution to the model as a dictionary.
-        :type: dict
-
-        """
-        if self.__symbolic_solution is None:
-            self.__symbolic_solution, = sym.solve(self._symbolic_equations,
-                                                  Y, W, M, dict=True)
-        return self.__symbolic_solution
+        self.model = model
 
     @property
     def guess(self):
@@ -130,15 +34,61 @@ class InitialGuess(object):
         :type: numpy.ndarray
 
         """
-        # extract model data
-        num_cities = self.solver.model.N
-        params = self.solver.model.params
-        population = self.solver.model.population
+        raise NotImplementedError
 
-        P0 = np.repeat(1.0, num_cities-1)
-        Y0 = self._numeric_gdp(1.0, population[:num_cities], **params)
-        W0 = self._numeric_wage(1.0, population[:num_cities], **params)
-        M0 = self._numeric_num_firms(1.0, population[:num_cities], **params)
+
+class IslandsGuess(InitialGuess):
+
+    __city = None
+
+    @property
+    def city(self):
+        """
+        An instance of the SingleCityModel class.
+
+        :getter: Return the current instance.
+        :type: models.SingleCityModel
+
+        """
+        if self.__city is None:
+            params = self.model.params
+            physical_distances = self.model.physical_distances
+            population = self.model.population
+
+            # create an instance of the SingleCityModel
+            self.__city = models.SingleCityModel(params,
+                                                 physical_distances,
+                                                 population)
+
+        return self.__city
+
+    @property
+    def guess(self):
+        """
+        The initial guess for the model equilibrium.
+
+        :getter: Return current initial guess.
+        :type: numpy.ndarray
+
+        """
+        # initial guess for price levels
+        P0 = np.repeat(1.0, self.model.N-1)
+
+        # initial guess for nominal gdp, wages, and number of firms
+        Y0 = np.empty(self.model.N)
+        W0 = np.empty(self.model.N)
+        M0 = np.empty(self.model.N)
+
+        for h, population in enumerate(self.city.population[:self.model.N]):
+            Y0[h] = self.city.compute_nominal_gdp(np.ones(1.0),
+                                                  np.array([population]),
+                                                  self.city.params)
+            W0[h] = self.city.compute_nominal_wage(np.ones(1.0),
+                                                   np.array([population]),
+                                                   self.city.params)
+            M0[h] = self.city.compute_number_firms(np.ones(1.0),
+                                                   np.array([population]),
+                                                   self.city.params)
 
         return np.hstack((P0, Y0, W0, M0))
 
@@ -163,7 +113,7 @@ class Solver(object):
         self.model = model
 
         # create an instance of the InitialGuess class
-        self.initial_guess = InitialGuess(self)
+        self.initial_guess = IslandsGuess(model)
 
     def _clear_cache(self):
         """Clear all cached values."""
