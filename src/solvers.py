@@ -89,35 +89,56 @@ class IslandsGuess(InitialGuess):
 
 class HotStartGuess(InitialGuess):
 
+    __result = None
+    __solution = None
+    __solver = None
+
     @property
     def guess(self):
-        """
-        The initial guess for the model equilibrium.
+        self.__model = self.model
+        self.__solution = self.city.solution
 
-        :getter: Return current initial guess.
-        :type: numpy.ndarray
+        for number_cities in range(1, 10):
 
-        """
-        # initial guess for price levels
-        P0 = np.repeat(1.0, self.model.N-1)
+            # split the current solution
+            P = self.__solution[:number_cities-1]
+            Y = self.__solution[number_cities-1:2 * number_cities-1]
+            W = self.__solution[2 * number_cities-1:3 * number_cities-1]
+            M = self.__solution[3 * number_cities-1:]
 
-        # initial guess for nominal gdp, wages, and number of firms
-        Y0 = np.empty(self.model.N)
-        W0 = np.empty(self.model.N)
-        M0 = np.empty(self.model.N)
+            # get the guess for the next city
+            P0, Y0, W0, M0 = self._guess_next_city(number_cities)
 
-        for h, population in enumerate(self.city.population[:self.model.N]):
-            Y0[h] = self.city.compute_nominal_gdp(np.ones(1.0),
-                                                  np.array([population]),
-                                                  self.city.params)
-            W0[h] = self.city.compute_nominal_wage(np.ones(1.0),
-                                                   np.array([population]),
-                                                   self.city.params)
-            M0[h] = self.city.compute_number_firms(np.ones(1.0),
-                                                   np.array([population]),
-                                                   self.city.params)
+            # then combine
+            self.__initial_guess = np.hstack((np.append(P, P0),
+                                              np.append(Y, Y0),
+                                              np.append(W, W0),
+                                              np.append(M, M0)))
 
-        return np.hstack((P0, Y0, W0, M0))
+            self.__model.N = number_cities + 1
+            self.__solver = Solver(self.__model)
+            self.__result = self.__solver.solve(self.__initial_guess,
+                                                method='hybr',
+                                                tol=1e-12,
+                                                with_jacobian=True)
+            print self.__result
+            print ""
+            self.__solution = self.__result.x
+
+            print self.__solution
+            print ""
+
+    def _guess_next_city(self, h):
+        tmp_params = self.city.params
+        tmp_population = np.array([self.city.population[h]])
+
+        # initial guess for a particular city h
+        P0 = np.ones(1.0)
+        Y0 = self.city.compute_nominal_gdp(P0, tmp_population, tmp_params)
+        W0 = self.city.compute_nominal_wage(P0, tmp_population, tmp_params)
+        M0 = self.city.compute_number_firms(P0, tmp_population, tmp_params)
+
+        return (P0, Y0, W0, M0)
 
 
 class Solver(object):
