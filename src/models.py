@@ -2,7 +2,7 @@
 Main classes representing the model.
 
 @author : David R. Pugh
-@date : 2014-10-08
+@date : 2014-10-21
 
 """
 import numpy as np
@@ -20,8 +20,6 @@ num_firms = sym.DeferredVector('M')
 
 
 class Model(object):
-
-    modules = [{'ImmutableMatrix': np.array}, "numpy"]
 
     def __init__(self, number_cities, params, physical_distances, population):
         """
@@ -49,7 +47,7 @@ class Model(object):
         self._clear_cache()
 
     @property
-    def _args(self):
+    def _symbolic_args(self):
         """
         Arguments to pass to functions used for numeric evaluation of model.
 
@@ -60,36 +58,6 @@ class Model(object):
         variables = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
         params = (f, beta, phi, tau, elasticity_substitution)
         return variables + params
-
-    @property
-    def _numeric_jacobian(self):
-        """
-        Vectorized function for numeric evaluation of model Jacobian.
-
-        :getter: Return the current function.
-        :type: function
-
-        """
-        if self.__numeric_jacobian is None:
-            self.__numeric_jacobian = sym.lambdify(self._args,
-                                                   self._symbolic_jacobian,
-                                                   self.modules)
-        return self.__numeric_jacobian
-
-    @property
-    def _numeric_system(self):
-        """
-        Vectorized function for numeric evaluation of model equations.
-
-        :getter: Return the current function.
-        :type: function
-
-        """
-        if self.__numeric_system is None:
-            self.__numeric_system = sym.lambdify(self._args,
-                                                 self._symbolic_system,
-                                                 self.modules)
-        return self.__numeric_system
 
     @property
     def _symbolic_equations(self):
@@ -230,8 +198,6 @@ class Model(object):
 
     def _clear_cache(self):
         """Clear all cached values."""
-        self.__numeric_jacobian = None
-        self.__numeric_system = None
         self.__symbolic_equations = None
         self.__symbolic_jacobian = None
         self.__symbolic_system = None

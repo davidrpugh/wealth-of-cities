@@ -2,11 +2,11 @@ import numpy as np
 from scipy import optimize
 import sympy as sym
 
-# define parameters
-f, beta, phi, tau, theta = sym.var('f, beta, phi, tau, theta')
-
 # define variables
 L, M, P, W, Y = sym.var('L, M, P, W, Y')
+
+# define parameters
+f, beta, phi, tau, theta = sym.var('f, beta, phi, tau, theta')
 
 
 class InitialGuess(object):
@@ -145,6 +145,11 @@ class InitialGuess(object):
 
 class Solver(object):
 
+    __numeric_jacobian = None
+    __numeric_system = None
+
+    _modules = [{'ImmutableMatrix': np.array}, "numpy"]
+
     def __init__(self, model):
         """
         Create and instance of the Solver class.
@@ -159,6 +164,41 @@ class Solver(object):
 
         # create an instance of the InitialGuess class
         self.initial_guess = InitialGuess(self)
+
+    def _clear_cache(self):
+        """Clear all cached values."""
+        self.__numeric_jacobian = None
+        self.__numeric_system = None
+
+    @property
+    def _numeric_jacobian(self):
+        """
+        Vectorized function for numeric evaluation of model Jacobian.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_jacobian is None:
+            self.__numeric_jacobian = sym.lambdify(self.model._symbolic_args,
+                                                   self.model._symbolic_jacobian,
+                                                   self._modules)
+        return self.__numeric_jacobian
+
+    @property
+    def _numeric_system(self):
+        """
+        Vectorized function for numeric evaluation of model equations.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_system is None:
+            self.__numeric_system = sym.lambdify(self.model._symbolic_args,
+                                                 self.model._symbolic_system,
+                                                 self._modules)
+        return self.__numeric_system
 
     def system(self, X):
         """
@@ -180,7 +220,7 @@ class Solver(object):
         Y = X[self.model.N-1:2 * self.model.N-1]
         W = X[2 * self.model.N-1:3 * self.model.N-1]
         M = X[3 * self.model.N-1:]
-        residual = self.model._numeric_system(P, Y, W, M, **self.model.params)
+        residual = self._numeric_system(P, Y, W, M, **self.model.params)
         return residual.ravel()
 
     def jacobian(self, X):
@@ -204,7 +244,7 @@ class Solver(object):
         W = X[2 * self.model.N-1:3 * self.model.N-1]
         M = X[3 * self.model.N-1:]
 
-        jac = self.model._numeric_jacobian(P, Y, W, M, **self.model.params)
+        jac = self._numeric_jacobian(P, Y, W, M, **self.model.params)
 
         return jac
 

@@ -1,15 +1,14 @@
 """
-Test suite for the model.py module.
+Test suite for the models.py module.
 
 @author : David R. Pugh
-@date : 2014-10-08
+@date : 2014-10-21
 
 """
 import nose
 import numpy as np
-from scipy import linalg
 
-from model import Model
+from models import Model
 import master_data
 import solvers
 
