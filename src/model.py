@@ -1,34 +1,16 @@
 """
-Code for generating the symbolic equations which define the equilibrium of our
-model.
+Main classes representing the model.
 
 @author : David R. Pugh
-@date : 2014-10-06
+@date : 2014-10-08
 
 """
 import numpy as np
 import sympy as sym
 
-import master_data
-
-# define the number of cities
-num_cities = 1
-
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
-
-# compute the economic distance
-physical_distance = np.load('../data/google/normed_vincenty_distance.npy')
-economic_distance = np.exp(physical_distance[:num_cities, :num_cities])**tau
-# economic_distance = sym.MatrixSymbol('delta', num_cities, num_cities)
-
-# compute the effective labor supply
-raw_data = master_data.panel.minor_xs(2010)
-clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
-total_population = clean_data['POP_MI'].values
-effective_labor_supply = sym.Matrix([beta * total_population])
-# total_labor_supply = sym.DeferredVector('S')
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
@@ -37,182 +19,389 @@ nominal_wage = sym.DeferredVector('W')
 num_firms = sym.DeferredVector('M')
 
 
-def goods_market_clearing(h):
-    """Exports must balance imports for city h."""
-    return total_exports(h) - total_imports(h)
+class Model(object):
 
+    modules = [{'ImmutableMatrix': np.array}, "numpy"]
 
-def labor_market_clearing(h):
-    """Labor market clearing condition for city h."""
-    return effective_labor_supply[h] - total_labor_demand(h)
+    def __init__(self, number_cities, params, physical_distances, population):
+        """
+        Create an instance of the Model class.
 
+        Parameters
+        ----------
+        number_cities : int
+            Number of cities in the economy.
+        params : dict
+            Dictionary of model parameters.
+        physical_distances : numpy.ndarray (shape=(N,N))
+            Square array of pairwise measures pf physical distance between
+            cities.
+        population : numpy.ndarray (shape=(N,))
+            Array of total population for each city.
 
-def labor_productivity(h, j):
-    """Productivity of labor in city h when producing good j."""
-    return phi / economic_distance[h, j]
+        """
+        self.N = number_cities
+        self.params = params
+        self.physical_distances = physical_distances
+        self.population = population
 
+        # initialize cache values
+        self._clear_cache()
 
-def marginal_costs(h, j):
-    """Marginal costs of production of good j in city h."""
-    return nominal_wage[h] / labor_productivity(h, j)
+    @property
+    def _args(self):
+        """
+        Arguments to pass to functions used for numeric evaluation of model.
 
+        :getter: Return the current arguments
+        :type: tuple
 
-def mark_up(j):
-    """Markup over marginal costs of production for good j."""
-    return (elasticity_substitution[j] / (elasticity_substitution[j] - 1))
+        """
+        variables = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
+        params = (f, beta, phi, tau, elasticity_substitution)
+        return variables + params
 
+    @property
+    def _numeric_jacobian(self):
+        """
+        Vectorized function for numeric evaluation of model Jacobian.
 
-def optimal_price(h, j):
-    """Optimal price of good j sold in city h."""
-    return mark_up(j) * marginal_costs(h, j)
+        :getter: Return the current function.
+        :type: function
 
+        """
+        if self.__numeric_jacobian is None:
+            self.__numeric_jacobian = sym.lambdify(self._args,
+                                                   self._symbolic_jacobian,
+                                                   self.modules)
+        return self.__numeric_jacobian
 
-def quantity_demand(price, j):
-    """Quantity demanded of a good in city j depends negatively on its price."""
-    return relative_price(price, j)**(-elasticity_substitution[j]) * real_gdp(j)
+    @property
+    def _numeric_system(self):
+        """
+        Vectorized function for numeric evaluation of model equations.
 
+        :getter: Return the current function.
+        :type: function
 
-def real_gdp(i):
-    """Real gross domestic product of city i."""
-    return nominal_gdp[i] / nominal_price_level[i]
+        """
+        if self.__numeric_system is None:
+            self.__numeric_system = sym.lambdify(self._args,
+                                                 self._symbolic_system,
+                                                 self.modules)
+        return self.__numeric_system
 
+    @property
+    def _symbolic_equations(self):
+        """
+        List of symbolic equations defining the model.
 
-def relative_price(price, j):
-    """Relative price of a good in city j."""
-    return price / nominal_price_level[j]
+        :getter: Return the current list of model equations.
+        :type: list
 
+        """
+        if self.__symbolic_equations is None:
+            # drop one equation as a result of normalization
+            eqns = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
+                    [self.total_profits(h) for h in range(self.N)] +
+                    [self.labor_market_clearing(h) for h in range(self.N)] +
+                    [self.resource_constraint(h) for h in range(self.N)])
+            self.__symbolic_equations = eqns
+        return self.__symbolic_equations
 
-def resource_constraint(h):
-    """Nominal GDP in city h must equal nominal income in city h."""
-    return nominal_gdp[h] - effective_labor_supply[h] * nominal_wage[h]
+    @property
+    def _symbolic_jacobian(self):
+        """
+        Symbolic representation of Jacobian matrix of partial derivatives.
 
+        :getter: Return the current Jacobian matrix.
+        :type: sympy.Matrix
 
-def revenue(price, quantity):
-    """Revenue from producing a certain quantity at a given price."""
-    return price * quantity
+        """
+        if self.__symbolic_jacobian is None:
+            jac = self._symbolic_system.jacobian(self._symbolic_variables)
+            self.__symbolic_jacobian = jac
+        return self.__symbolic_jacobian
 
+    @property
+    def _symbolic_system(self):
+        """
+        Matrix representation of symbolic model equations.
 
-def total_cost(h):
-    """Total cost of production for a firm in city h."""
-    return total_variable_cost(h) + total_fixed_cost(h)
+        :getter: Return the current model equations as a symbolic Matrix.
+        :type: sympy.Matrix
 
+        """
+        return sym.Matrix(self._symbolic_equations)
 
-def total_exports(h):
-    """Total exports of various goods from city h."""
-    individual_exports = []
-    for j in range(num_cities):
-        p_star = optimal_price(h, j)
-        q_star = quantity_demand(p_star, j)
-        individual_exports.append(num_firms[h] * revenue(p_star, q_star))
+    @property
+    def _symbolic_variables(self):
+        """
+        List of symbolic endogenous variables.
 
-    return sum(individual_exports)
+        :getter: Return the current list of endogenous variables.
+        :type: list
 
+        """
+        if self.__symbolic_variables is None:
+            # normalize P[0] = 1.0 (only P[1]...P[num_cities-1] are unknowns)
+            variables = ([nominal_price_level[h] for h in range(1, self.N)] +
+                         [nominal_gdp[h] for h in range(self.N)] +
+                         [nominal_wage[h] for h in range(self.N)] +
+                         [num_firms[h] for h in range(self.N)])
+            self.__symbolic_variables = variables
+        return self.__symbolic_variables
 
-def total_fixed_cost(h):
-    """Total fixed cost of production for a firm in city h."""
-    return f * nominal_wage[h]
+    @property
+    def economic_distances(self):
+        """
+        Square matrix of pairwise measures of economic distance between cities.
 
+        :getter: Return the matrix of economic distances.
+        :type: sympy.Basic
 
-def total_fixed_labor_demand(h):
-    """Total fixed labor demand for firms in city h."""
-    return num_firms[h] * f
+        """
+        return np.exp(self.physical_distances)**tau
 
+    @property
+    def effective_labor_supply(self):
+        """
+        Effective labor supply is a constant multple of total population.
 
-def total_imports(h):
-    """Total imports of various goods into city h."""
-    individual_imports = []
-    for j in range(num_cities):
-        p_star = optimal_price(j, h)
-        q_star = quantity_demand(p_star, h)
-        individual_imports.append(num_firms[j] * revenue(p_star, q_star))
+        :getter: Return the current effective labor supply.
+        :type: sympy.Matrix
 
-    return sum(individual_imports)
+        """
+        return sym.Matrix([beta * self.population])
 
+    @property
+    def N(self):
+        """
+        Number of cities in the economy.
 
-def total_labor_demand(h):
-    """Total demand for labor for firms in city h."""
-    return total_variable_labor_demand(h) + total_fixed_labor_demand(h)
+        :getter: Return the current number of cities.
+        :setter: Set a new number of cities.
+        :type: int
 
+        """
+        return self._N
 
-def total_profits(h):
-    """Total profits for a firm in city h."""
-    return total_revenue(h) - total_cost(h)
+    @N.setter
+    def N(self, value):
+        """Set a new number of cities."""
+        self._N = self._validate_number_cities(value)
 
+        # don't forget to clear cache!
+        self._clear_cache()
 
-def total_revenue(h):
-    """Total revenue for a firm producing in city h."""
-    individual_revenues = []
-    for j in range(num_cities):
-        p_star = optimal_price(h, j)
-        q_star = quantity_demand(p_star, j)
-        individual_revenues.append(revenue(p_star, q_star))
+    @property
+    def physical_distances(self):
+        """
+        Square array of pairwise measures pf physical distance between cities.
 
-    return sum(individual_revenues)
+        :getter: Return the current array of physical distances.
+        :setter: Set a new array of physical distances.
+        :type: numpy.ndarray
 
+        """
+        return self._physical_distances[:self.N, :self.N]
 
-def total_variable_cost(h):
-    """Total variable costs of production for a firm in city h."""
-    individual_variable_costs = []
-    for j in range(num_cities):
-        p_star = optimal_price(h, j)
-        q_star = quantity_demand(p_star, j)
-        individual_variable_costs.append(variable_cost(q_star, h, j))
+    @physical_distances.setter
+    def physical_distances(self, array):
+        """Set a new array of physical distances."""
+        self._physical_distances = array
 
-    return sum(individual_variable_costs)
+    @property
+    def params(self):
+        """
+        Dictionary of model parameters.
 
+        :getter: Return the current parameter dictionary.
+        :setter: Set a new parameter dictionary.
+        :type: dict
 
-def total_variable_labor_demand(h):
-    """Total variable labor demand for firms in city h."""
-    individual_labor_demands = []
-    for j in range(num_cities):
-        p_star = optimal_price(h, j)
-        q_star = quantity_demand(p_star, j)
-        individual_labor_demands.append(variable_labor_demand(q_star, h, j))
+        """
+        return self._params
 
-    return num_firms[h] * sum(individual_labor_demands)
+    @params.setter
+    def params(self, value):
+        """Set a new parameter dictionary."""
+        self._params = self._validate_params(value)
 
+    def _clear_cache(self):
+        """Clear all cached values."""
+        self.__numeric_jacobian = None
+        self.__numeric_system = None
+        self.__symbolic_equations = None
+        self.__symbolic_jacobian = None
+        self.__symbolic_system = None
+        self.__symbolic_variables = None
 
-def variable_cost(quantity, h, j):
-    """
-    Variable cost of a firm in city h to produce a given quantity of good for
-    sale in city j.
+    @classmethod
+    def _validate_number_cities(cls, value):
+        """Validate number of cities, N, attribute."""
+        if not isinstance(value, int):
+            mesg = "Model.N attribute must have type int and not {}"
+            raise AttributeError(mesg.format(value.__class__))
+        elif value < 1:
+            mesg = "Model.N attribute must be greater than or equal to 1."
+            raise AttributeError(mesg)
+        else:
+            return value
 
-    """
-    return variable_labor_demand(quantity, h, j) * nominal_wage[h]
+    @classmethod
+    def _validate_params(cls, params):
+        """Validate params attribute."""
+        required_params = ['f', 'beta', 'phi', 'tau']
+        if not isinstance(params, dict):
+            mesg = "Model.params attribute must have type dict and not {}"
+            raise AttributeError(mesg.format(params.__class__))
+        elif not set(required_params) <= set(params.keys()):
+            mesg = "Parameter dictionary must specify values for each of {}"
+            raise AttributeError(mesg.format(required_params))
+        else:
+            return params
 
+    def goods_market_clearing(self, h):
+        """Exports must balance imports for city h."""
+        return self.total_exports(h) - self.total_imports(h)
 
-def variable_labor_demand(quantity, h, j):
-    """
-    Variable labor demand by firm in city h to produce a given quantity of good
-    for sale in city j.
+    def labor_market_clearing(self, h):
+        """Labor market clearing condition for city h."""
+        return self.effective_labor_supply[h] - self.total_labor_demand(h)
 
-    """
-    return quantity / labor_productivity(h, j)
+    def labor_productivity(self, h, j):
+        """Productivity of labor in city h when producing good j."""
+        return phi / self.economic_distances[h, j]
 
-### construct the system of non-linear equilibrium conditions and its jacobian
+    def marginal_costs(self, h, j):
+        """Marginal costs of production of good j in city h."""
+        return nominal_wage[h] / self.labor_productivity(h, j)
 
-# normalize P[0] = 1.0 (so only P[1]...P[num_cities-1] are unknowns)
-endog_vars = ([nominal_price_level[h] for h in range(1, num_cities)] +
-              [nominal_gdp[h] for h in range(num_cities)] +
-              [nominal_wage[h] for h in range(num_cities)] +
-              [num_firms[h] for h in range(num_cities)])
+    @staticmethod
+    def mark_up(j):
+        """Markup over marginal costs of production for good j."""
+        return (elasticity_substitution[j] / (elasticity_substitution[j] - 1))
 
-# drop one equation as a result of normalization
-equations = ([goods_market_clearing(h) for h in range(1, num_cities)] +
-             [total_profits(h) for h in range(num_cities)] +
-             [labor_market_clearing(h) for h in range(num_cities)] +
-             [resource_constraint(h) for h in range(num_cities)])
+    def optimal_price(self, h, j):
+        """Optimal price of good j sold in city h."""
+        return self.mark_up(j) * self.marginal_costs(h, j)
 
-symbolic_system = sym.Matrix(equations)
-#symbolic_jacobian = symbolic_system.jacobian(endog_vars)
+    @classmethod
+    def quantity_demand(cls, price, j):
+        """Quantity demand of a good is negative function of price."""
+        return cls.relative_price(price, j)**(-elasticity_substitution[j]) * cls.real_gdp(j)
 
-# wrap the symbolic equilibrium system and jacobian
-vector_vars = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-params = (f, beta, phi, tau, elasticity_substitution)
-args = vector_vars + params
+    @staticmethod
+    def real_gdp(i):
+        """Real gross domestic product of city i."""
+        return nominal_gdp[i] / nominal_price_level[i]
 
-numeric_system = sym.lambdify(args, symbolic_system,
-                              modules=[{'ImmutableMatrix': np.array}, "numpy"])
+    @staticmethod
+    def relative_price(price, j):
+        """Relative price of a good in city j."""
+        return price / nominal_price_level[j]
 
-#numeric_jacobian = sym.lambdify(args, symbolic_jacobian,
-#                                modules=[{'ImmutableMatrix': np.array}, "numpy"])
+    def resource_constraint(self, h):
+        """Nominal GDP in city h must equal nominal income in city h."""
+        constraint = (nominal_gdp[h] -
+                      self.effective_labor_supply[h] * nominal_wage[h])
+        return constraint
+
+    @staticmethod
+    def revenue(price, quantity):
+        """Revenue from producing a certain quantity at a given price."""
+        return price * quantity
+
+    def total_cost(self, h):
+        """Total cost of production for a firm in city h."""
+        return self.total_variable_cost(h) + self.total_fixed_cost(h)
+
+    def total_exports(self, h):
+        """Total exports of various goods from city h."""
+        individual_exports = []
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            total_revenue_h = num_firms[h] * self.revenue(p_star, q_star)
+            individual_exports.append(total_revenue_h)
+
+        return sum(individual_exports)
+
+    @staticmethod
+    def total_fixed_cost(h):
+        """Total fixed cost of production for a firm in city h."""
+        return f * nominal_wage[h]
+
+    @staticmethod
+    def total_fixed_labor_demand(h):
+        """Total fixed labor demand for firms in city h."""
+        return num_firms[h] * f
+
+    def total_imports(self, h):
+        """Total imports of various goods into city h."""
+        individual_imports = []
+        for j in range(self.N):
+            p_star = self.optimal_price(j, h)
+            q_star = self.quantity_demand(p_star, h)
+            total_revenue_j = num_firms[j] * self.revenue(p_star, q_star)
+            individual_imports.append(total_revenue_j)
+
+        return sum(individual_imports)
+
+    def total_labor_demand(self, h):
+        """Total demand for labor for firms in city h."""
+        total_demand = (self.total_variable_labor_demand(h) +
+                        self.total_fixed_labor_demand(h))
+        return total_demand
+
+    def total_profits(self, h):
+        """Total profits for a firm in city h."""
+        return self.total_revenue(h) - self.total_cost(h)
+
+    def total_revenue(self, h):
+        """Total revenue for a firm producing in city h."""
+        individual_revenues = []
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            individual_revenues.append(self.revenue(p_star, q_star))
+
+        return sum(individual_revenues)
+
+    def total_variable_cost(self, h):
+        """Total variable costs of production for a firm in city h."""
+        individual_variable_costs = []
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            individual_variable_costs.append(self.variable_cost(q_star, h, j))
+
+        return sum(individual_variable_costs)
+
+    def total_variable_labor_demand(self, h):
+        """Total variable labor demand for firms in city h."""
+        individual_labor_demands = []
+        for j in range(self.N):
+            p_star = self.optimal_price(h, j)
+            q_star = self.quantity_demand(p_star, j)
+            variable_demand_h = self.variable_labor_demand(q_star, h, j)
+            individual_labor_demands.append(variable_demand_h)
+
+        return num_firms[h] * sum(individual_labor_demands)
+
+    def variable_cost(self, quantity, h, j):
+        """
+        Variable cost of a firm in city h to produce a given quantity of good
+        for sale in city j.
+
+        """
+        return self.variable_labor_demand(quantity, h, j) * nominal_wage[h]
+
+    def variable_labor_demand(self, quantity, h, j):
+        """
+        Variable labor demand by firm in city h to produce a given quantity of
+        good for sale in city j.
+
+        """
+        return quantity / self.labor_productivity(h, j)
