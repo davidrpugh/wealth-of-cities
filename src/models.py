@@ -413,11 +413,11 @@ class SingleCityModel(Model):
 
         """
         P0 = np.ones(1.0)
-        Y0 = self._numeric_gdp(P0, **self.params)
-        W0 = self._numeric_wage(P0, **self.params)
-        M0 = self._numeric_num_firms(P0, **self.params)
+        Y0 = self.compute_nominal_gdp(P0, self.params)
+        W0 = self.compute_nominal_wage(P0, self.params)
+        M0 = self.compute_number_firms(P0, self.params)
 
-        return np.hstack((P0, Y0, W0, M0))
+        return np.hstack((Y0, W0, M0))
 
     @property
     def _numeric_gdp(self):
@@ -494,3 +494,66 @@ class SingleCityModel(Model):
                                                   self._symbolic_variables,
                                                   dict=True)
         return self.__symbolic_solution
+
+    def compute_nominal_gdp(self, price_level, params):
+        """
+        Compute equilibrium nominal GDP for the city given a price level and
+        some parameters.
+
+        Parameters
+        ----------
+        price_level : numpy.ndarray (shape=(1,))
+            Price level index for the city.
+        params : dict
+            Dictionary of model parameters.
+
+        Returns
+        -------
+        nominal_gdp : float
+            Equilibrium nominal GDP for the city.
+
+        """
+        nominal_gdp = self._numeric_gdp(price_level, **params)
+        return nominal_gdp
+
+    def compute_nominal_wage(self, price_level, params):
+        """
+        Compute equilibrium nominal wage for the city given a price level and
+        some parameters.
+
+        Parameters
+        ----------
+        price_level : numpy.ndarray (shape=(1,))
+            Price level index for the city.
+        params : dict
+            Dictionary of model parameters.
+
+        Returns
+        -------
+        nominal_wage : float
+            Equilibrium nominal wages for the city.
+
+        """
+        nominal_wage = self._numeric_wage(price_level, **params)
+        return nominal_wage
+
+    def compute_number_firms(self, price_level, params):
+        """
+        Compute equilibrium nominal number of firms for the city given a price
+        level and some parameters.
+
+        Parameters
+        ----------
+        price_level : numpy.ndarray (shape=(1,))
+            Price level index for the city.
+        params : dict
+            Dictionary of model parameters.
+
+        Returns
+        -------
+        number_firms: float
+            Equilibrium number of firms.
+
+        """
+        number_firms = self._numeric_num_firms(price_level, **params)
+        return number_firms
