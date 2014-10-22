@@ -11,7 +11,13 @@ L, M, P, W, Y = sym.var('L, M, P, W, Y')
 
 class InitialGuess(object):
 
-    modules = modules = [{'ImmutableMatrix': np.array}, "numpy"]
+    # initialize cached values
+    __numeric_gdp = None
+    __numeric_num_firms = None
+    __numeric_wage = None
+    __symbolic_solution = None
+
+    _modules = [{'ImmutableMatrix': np.array}, "numpy"]
 
     def __init__(self, solver):
         """
@@ -24,12 +30,6 @@ class InitialGuess(object):
 
         """
         self.solver = solver
-
-        # initialize cached values
-        self.__numeric_gdp = None
-        self.__numeric_num_firms = None
-        self.__numeric_wage = None
-        self.__symbolic_solution = None
 
     @property
     def _args(self):
@@ -55,7 +55,7 @@ class InitialGuess(object):
         if self.__numeric_gdp is None:
             self.__numeric_gdp = sym.lambdify(self._args,
                                               self._symbolic_solution[Y],
-                                              self.modules)
+                                              self._modules)
         return self.__numeric_gdp
 
     @property
@@ -70,7 +70,7 @@ class InitialGuess(object):
         if self.__numeric_wage is None:
             self.__numeric_wage = sym.lambdify(self._args,
                                                self._symbolic_solution[W],
-                                               self.modules)
+                                               self._modules)
         return self.__numeric_wage
 
     @property
@@ -85,7 +85,7 @@ class InitialGuess(object):
         if self.__numeric_num_firms is None:
             self.__numeric_num_firms = sym.lambdify(self._args,
                                                     self._symbolic_solution[M],
-                                                    self.modules)
+                                                    self._modules)
         return self.__numeric_num_firms
 
     @property
@@ -167,6 +167,7 @@ class Solver(object):
         Parameters
         ----------
         X : numpy.ndarray
+            Array containing values of the endogenous variables.
 
         Returns
         -------
@@ -190,6 +191,7 @@ class Solver(object):
         Parameters
         ----------
         X : numpy.ndarray
+            Array containing values of the endogenous variables.
 
         Returns
         -------
@@ -206,18 +208,26 @@ class Solver(object):
 
         return jac
 
-    def solve(self, method, with_jacobian=True, **kwargs):
+    def solve(self, method='hybr', with_jacobian=True, **kwargs):
         """
         Solve the system of non-linear equations describing the equilibrium.
 
         Parameters
         ----------
-        initial_guess : numpy.ndarray
-        method : str
+        method : str (default='hybr')
+            Valid method used to find the root of the non-linear system. See
+            scipy.optimize.root for a complete list of valid methods.
+        with_jacobian : boolean (default=True)
+            Flag indicating whether to used the exact jacobian or a finite
+            difference approximation of the exact jacobian.
 
         Returns
         -------
-        result :
+        result : scipy.optimize.OptimizeResult
+            The solution represented as a OptimizeResult object. Important
+            attributes are: x the solution array, success a Boolean flag
+            indicating if the algorithm exited successfully and message which
+            describes the cause of the termination.
 
         """
         if with_jacobian:
