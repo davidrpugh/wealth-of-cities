@@ -371,3 +371,23 @@ class Model(object):
 
         """
         return quantity / self.labor_productivity(h, j)
+
+
+class SingleCityModel(Model):
+
+    def __init__(self, params, physical_distances, population):
+        """
+        Create an instance of the SingleCityModel class.
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary of model parameters.
+        physical_distances : numpy.ndarray (shape=(N,N))
+            Square array of pairwise measures pf physical distance between
+            cities.
+        population : numpy.ndarray (shape=(N,))
+            Array of total population for each city.
+
+        """
+        super(Model, self).__init(1, params, physical_distances, population)
