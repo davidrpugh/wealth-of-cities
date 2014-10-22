@@ -70,9 +70,6 @@ class InitialGuess(object):
         """Set a new number of cities."""
         self._N = self._validate_number_cities(value)
 
-        # don't forget to clear cache!
-        self._clear_cache()
-
     @classmethod
     def _validate_number_cities(cls, value):
         """Validate number of cities, N, attribute."""
@@ -98,14 +95,14 @@ class IslandsGuess(InitialGuess):
 
         """
         # initial guess for price levels
-        P0 = np.repeat(1.0, self.model.N-1)
+        P0 = np.repeat(1.0, self.N-1)
 
         # initial guess for nominal gdp, wages, and number of firms
-        Y0 = np.empty(self.model.N)
-        W0 = np.empty(self.model.N)
-        M0 = np.empty(self.model.N)
+        Y0 = np.empty(self.N)
+        W0 = np.empty(self.N)
+        M0 = np.empty(self.N)
 
-        for h, population in enumerate(self.city.population[:self.model.N]):
+        for h, population in enumerate(self.city.population[:self.N]):
             Y0[h] = self.city.compute_nominal_gdp(np.ones(1.0),
                                                   np.array([population]),
                                                   self.city.params)
@@ -127,10 +124,17 @@ class HotStartGuess(InitialGuess):
 
     @property
     def guess(self):
+        """
+        The initial guess for the model equilibrium.
+
+        :getter: Return current initial guess.
+        :type: numpy.ndarray
+
+        """
         self.__model = self.model
         self.__solution = self.city.solution
 
-        for number_cities in range(1, 10):
+        for number_cities in range(1, self.N):
 
             # split the current solution
             P = self.__solution[:number_cities-1]
@@ -150,17 +154,29 @@ class HotStartGuess(InitialGuess):
             self.__model.N = number_cities + 1
             self.__solver = Solver(self.__model)
             self.__result = self.__solver.solve(self.__initial_guess,
-                                                method='hybr',
-                                                tol=1e-12,
-                                                with_jacobian=True)
-            print self.__result
-            print ""
+                                                **self.solver_kwargs)
             self.__solution = self.__result.x
 
-            print self.__solution
-            print ""
+        return self.__solution
+
+    @property
+    def solver_kwargs(self):
+        """
+        Dictionary of optional solver keywrod arguments.
+
+        :getter: Return the current dictionary of solver keyword arguments.
+        :setter: Set a new dictionary of solver keyword arguments.
+        :type: dictionary
+        """
+        return self._solver_kwargs
+
+    @solver_kwargs.setter
+    def solver_kwargs(self, value):
+        """Set a new dictionary of solver keyword arugments."""
+        self._solver_kwargs = value
 
     def _guess_next_city(self, h):
+        """Initial guess for next city is the analytic "island" solution."""
         tmp_params = self.city.params
         tmp_population = np.array([self.city.population[h]])
 
