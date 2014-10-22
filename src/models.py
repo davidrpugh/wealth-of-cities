@@ -21,6 +21,12 @@ num_firms = sym.DeferredVector('M')
 
 class Model(object):
 
+    # initialize the cached values
+    __symbolic_equations = None
+    __symbolic_jacobian = None
+    __symbolic_system = None
+    __symbolic_variables = None
+
     def __init__(self, number_cities, params, physical_distances, population):
         """
         Create an instance of the Model class.
@@ -42,9 +48,6 @@ class Model(object):
         self.params = params
         self.physical_distances = physical_distances
         self.population = population
-
-        # initialize cache values
-        self._clear_cache()
 
     @property
     def _symbolic_args(self):
@@ -375,6 +378,14 @@ class Model(object):
 
 class SingleCityModel(Model):
 
+    # initialize cached values
+    __numeric_gdp = None
+    __numeric_num_firms = None
+    __numeric_wage = None
+    __symbolic_solution = None
+
+    _modules = [{'ImmutableMatrix': np.array}, "numpy"]
+
     def __init__(self, params, physical_distances, population):
         """
         Create an instance of the SingleCityModel class.
@@ -390,4 +401,96 @@ class SingleCityModel(Model):
             Array of total population for each city.
 
         """
-        super(Model, self).__init(1, params, physical_distances, population)
+        super(SingleCityModel, self).__init__(1, params, physical_distances, population)
+
+    @property
+    def solution(self):
+        """
+        Equilbrium values of nominal GDP, nominal wages, and number of firms.
+
+        :getter: Return current solution.
+        :type: numpy.ndarray
+
+        """
+        P0 = np.ones(1.0)
+        Y0 = self._numeric_gdp(P0, **self.params)
+        W0 = self._numeric_wage(P0, **self.params)
+        M0 = self._numeric_num_firms(P0, **self.params)
+
+        return np.hstack((P0, Y0, W0, M0))
+
+    @property
+    def _numeric_gdp(self):
+        """
+        Vectorized function for evaluating solution for nominal GDP.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_gdp is None:
+            Y = nominal_gdp[0]
+            self.__numeric_gdp = sym.lambdify(self._symbolic_args,
+                                              self._symbolic_solution[Y],
+                                              self._modules)
+        return self.__numeric_gdp
+
+    @property
+    def _numeric_wage(self):
+        """
+        Vectorized function for evaluating solution for nominal wage.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_wage is None:
+            W = nominal_wage[0]
+            self.__numeric_wage = sym.lambdify(self._symbolic_args,
+                                               self._symbolic_solution[W],
+                                               self._modules)
+        return self.__numeric_wage
+
+    @property
+    def _numeric_num_firms(self):
+        """
+        Vectorized function for evaluating solution for number of firms.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_num_firms is None:
+            M = num_firms[0]
+            self.__numeric_num_firms = sym.lambdify(self._symbolic_args,
+                                                    self._symbolic_solution[M],
+                                                    self._modules)
+        return self.__numeric_num_firms
+
+    @property
+    def _symbolic_args(self):
+        """
+        Arguments to pass to functions used for numeric evaluation of model.
+
+        :getter: Return the current arguments
+        :type: tuple
+
+        """
+        variables = (nominal_price_level,)
+        params = (f, beta, phi, tau, elasticity_substitution)
+        return variables + params
+
+    @property
+    def _symbolic_solution(self):
+        """
+        Dictionary of symbolic expressions for analytic solution to the model.
+
+        :getter: Return the analytic solution to the model as a dictionary.
+        :type: dict
+
+        """
+        if self.__symbolic_solution is None:
+            self.__symbolic_solution, = sym.solve(self._symbolic_equations,
+                                                  self._symbolic_variables,
+                                                  dict=True)
+        return self.__symbolic_solution
