@@ -104,3 +104,49 @@ def nlls_objective(params):
     residual = actual_GDP - predicted_GDP
     obj = np.sum(residual**2)
     return obj
+
+
+class Estimator(object):
+
+    def __init__(self, solver, data):
+        """
+        Create and instance of the Estimator class.
+
+        Parameters
+        ----------
+        solver : solvers.Solver
+            An instance of the solvers.Solver class.
+        data : pandas.Panel
+            An instance of the pandas.Panel class.
+
+        """
+        self.data = data
+        self.solver = solver
+
+    def objective(params):
+        raise NotImplementedError
+
+    def estimate(self, method, **kwargs):
+        """
+        Estimate the model given some data.
+
+        Parameters
+        ----------
+        method : str
+            Valid method used to find the minimize the objective function. See
+            scipy.optimize.minimize for a complete list of valid methods.
+
+        Returns
+        -------
+        result : scipy.optimize.OptimizeResult
+            The solution represented as a OptimizeResult object. Important
+            attributes are: x the solution array, success a Boolean flag
+            indicating if the algorithm exited successfully and message which
+            describes the cause of the termination.
+
+        """
+        result = optimize.minimize(self.objective,
+                                   x0=self.initial_guess,
+                                   method=method,
+                                   **kwargs)
+        return result
