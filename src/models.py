@@ -11,6 +11,7 @@ import sympy as sym
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
+population = sym.DeferredVector('L')
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
@@ -59,7 +60,7 @@ class Model(object):
 
         """
         variables = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-        params = (f, beta, phi, tau, elasticity_substitution)
+        params = (population, f, beta, phi, tau, elasticity_substitution)
         return variables + params
 
     @property
@@ -133,17 +134,6 @@ class Model(object):
 
         """
         return np.exp(self.physical_distances)**tau
-
-    @property
-    def effective_labor_supply(self):
-        """
-        Effective labor supply is a constant multple of total population.
-
-        :getter: Return the current effective labor supply.
-        :type: sympy.Matrix
-
-        """
-        return sym.Matrix([beta * self.population])
 
     @property
     def N(self):
@@ -231,13 +221,17 @@ class Model(object):
         else:
             return params
 
+    def effective_labor_supply(self, h):
+        """Effective labor supply is a constant multple of total population."""
+        return beta * population[h]
+
     def goods_market_clearing(self, h):
         """Exports must balance imports for city h."""
         return self.total_exports(h) - self.total_imports(h)
 
     def labor_market_clearing(self, h):
         """Labor market clearing condition for city h."""
-        return self.effective_labor_supply[h] - self.total_labor_demand(h)
+        return self.effective_labor_supply(h) - self.total_labor_demand(h)
 
     def labor_productivity(self, h, j):
         """Productivity of labor in city h when producing good j."""
@@ -274,7 +268,7 @@ class Model(object):
     def resource_constraint(self, h):
         """Nominal GDP in city h must equal nominal income in city h."""
         constraint = (nominal_gdp[h] -
-                      self.effective_labor_supply[h] * nominal_wage[h])
+                      self.effective_labor_supply(h) * nominal_wage[h])
         return constraint
 
     @staticmethod
@@ -413,9 +407,9 @@ class SingleCityModel(Model):
 
         """
         P0 = np.ones(1.0)
-        Y0 = self.compute_nominal_gdp(P0, self.params)
-        W0 = self.compute_nominal_wage(P0, self.params)
-        M0 = self.compute_number_firms(P0, self.params)
+        Y0 = self.compute_nominal_gdp(P0, self.population, self.params)
+        W0 = self.compute_nominal_wage(P0, self.population, self.params)
+        M0 = self.compute_number_firms(P0, self.population, self.params)
 
         return np.hstack((Y0, W0, M0))
 
@@ -476,7 +470,7 @@ class SingleCityModel(Model):
         :type: tuple
 
         """
-        variables = (nominal_price_level,)
+        variables = (nominal_price_level, population)
         params = (f, beta, phi, tau, elasticity_substitution)
         return variables + params
 
@@ -495,7 +489,7 @@ class SingleCityModel(Model):
                                                   dict=True)
         return self.__symbolic_solution
 
-    def compute_nominal_gdp(self, price_level, params):
+    def compute_nominal_gdp(self, price_level, population, params):
         """
         Compute equilibrium nominal GDP for the city given a price level and
         some parameters.
@@ -504,6 +498,8 @@ class SingleCityModel(Model):
         ----------
         price_level : numpy.ndarray (shape=(1,))
             Price level index for the city.
+        population : numpy.ndarray (shape=(1,))
+            Total population for the city.
         params : dict
             Dictionary of model parameters.
 
@@ -513,10 +509,10 @@ class SingleCityModel(Model):
             Equilibrium nominal GDP for the city.
 
         """
-        nominal_gdp = self._numeric_gdp(price_level, **params)
+        nominal_gdp = self._numeric_gdp(price_level, population, **params)
         return nominal_gdp
 
-    def compute_nominal_wage(self, price_level, params):
+    def compute_nominal_wage(self, price_level, population, params):
         """
         Compute equilibrium nominal wage for the city given a price level and
         some parameters.
@@ -525,6 +521,8 @@ class SingleCityModel(Model):
         ----------
         price_level : numpy.ndarray (shape=(1,))
             Price level index for the city.
+        population : numpy.ndarray (shape=(1,))
+            Total population for the city.
         params : dict
             Dictionary of model parameters.
 
@@ -534,10 +532,10 @@ class SingleCityModel(Model):
             Equilibrium nominal wages for the city.
 
         """
-        nominal_wage = self._numeric_wage(price_level, **params)
+        nominal_wage = self._numeric_wage(price_level, population, **params)
         return nominal_wage
 
-    def compute_number_firms(self, price_level, params):
+    def compute_number_firms(self, price_level, population, params):
         """
         Compute equilibrium nominal number of firms for the city given a price
         level and some parameters.
@@ -546,6 +544,8 @@ class SingleCityModel(Model):
         ----------
         price_level : numpy.ndarray (shape=(1,))
             Price level index for the city.
+        population : numpy.ndarray (shape=(1,))
+            Total population for the city.
         params : dict
             Dictionary of model parameters.
 
@@ -555,5 +555,5 @@ class SingleCityModel(Model):
             Equilibrium number of firms.
 
         """
-        number_firms = self._numeric_num_firms(price_level, **params)
+        number_firms = self._numeric_num_firms(price_level, population, **params)
         return number_firms

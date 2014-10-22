@@ -220,7 +220,7 @@ class Solver(object):
         Y = X[self.model.N-1:2 * self.model.N-1]
         W = X[2 * self.model.N-1:3 * self.model.N-1]
         M = X[3 * self.model.N-1:]
-        residual = self._numeric_system(P, Y, W, M, **self.model.params)
+        residual = self._numeric_system(P, Y, W, M, self.model.population, **self.model.params)
         return residual.ravel()
 
     def jacobian(self, X):
@@ -244,7 +244,7 @@ class Solver(object):
         W = X[2 * self.model.N-1:3 * self.model.N-1]
         M = X[3 * self.model.N-1:]
 
-        jac = self._numeric_jacobian(P, Y, W, M, **self.model.params)
+        jac = self._numeric_jacobian(P, Y, W, M, self.model.population, **self.model.params)
 
         return jac
 
