@@ -74,10 +74,10 @@ class InitialGuess(object):
     def _validate_number_cities(cls, value):
         """Validate number of cities, N, attribute."""
         if not isinstance(value, int):
-            mesg = "Model.N attribute must have type int and not {}"
+            mesg = "InitialGuess.N attribute must have type int and not {}"
             raise AttributeError(mesg.format(value.__class__))
         elif value < 1:
-            mesg = "Model.N attribute must be greater than or equal to 1."
+            mesg = "InitialGuess.N attribute must be greater than or equal to 1."
             raise AttributeError(mesg)
         else:
             return value
@@ -207,11 +207,6 @@ class Solver(object):
 
         """
         self.model = model
-
-    def _clear_cache(self):
-        """Clear all cached values."""
-        self.__numeric_jacobian = None
-        self.__numeric_system = None
 
     @property
     def _numeric_jacobian(self):
