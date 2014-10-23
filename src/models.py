@@ -2,7 +2,7 @@
 Main classes representing the model.
 
 @author : David R. Pugh
-@date : 2014-10-08
+@date : 2014-10-21
 
 """
 import numpy as np
@@ -11,6 +11,7 @@ import sympy as sym
 # define parameters
 f, beta, phi, tau = sym.var('f, beta, phi, tau')
 elasticity_substitution = sym.DeferredVector('theta')
+population = sym.DeferredVector('L')
 
 # define variables
 nominal_gdp = sym.DeferredVector('Y')
@@ -21,16 +22,18 @@ num_firms = sym.DeferredVector('M')
 
 class Model(object):
 
-    modules = [{'ImmutableMatrix': np.array}, "numpy"]
+    # initialize the cached values
+    __symbolic_equations = None
+    __symbolic_jacobian = None
+    __symbolic_system = None
+    __symbolic_variables = None
 
-    def __init__(self, number_cities, params, physical_distances, population):
+    def __init__(self, params, physical_distances, population):
         """
         Create an instance of the Model class.
 
         Parameters
         ----------
-        number_cities : int
-            Number of cities in the economy.
         params : dict
             Dictionary of model parameters.
         physical_distances : numpy.ndarray (shape=(N,N))
@@ -40,16 +43,12 @@ class Model(object):
             Array of total population for each city.
 
         """
-        self.N = number_cities
         self.params = params
         self.physical_distances = physical_distances
         self.population = population
 
-        # initialize cache values
-        self._clear_cache()
-
     @property
-    def _args(self):
+    def _symbolic_args(self):
         """
         Arguments to pass to functions used for numeric evaluation of model.
 
@@ -58,38 +57,8 @@ class Model(object):
 
         """
         variables = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-        params = (f, beta, phi, tau, elasticity_substitution)
+        params = (population, f, beta, phi, tau, elasticity_substitution)
         return variables + params
-
-    @property
-    def _numeric_jacobian(self):
-        """
-        Vectorized function for numeric evaluation of model Jacobian.
-
-        :getter: Return the current function.
-        :type: function
-
-        """
-        if self.__numeric_jacobian is None:
-            self.__numeric_jacobian = sym.lambdify(self._args,
-                                                   self._symbolic_jacobian,
-                                                   self.modules)
-        return self.__numeric_jacobian
-
-    @property
-    def _numeric_system(self):
-        """
-        Vectorized function for numeric evaluation of model equations.
-
-        :getter: Return the current function.
-        :type: function
-
-        """
-        if self.__numeric_system is None:
-            self.__numeric_system = sym.lambdify(self._args,
-                                                 self._symbolic_system,
-                                                 self.modules)
-        return self.__numeric_system
 
     @property
     def _symbolic_equations(self):
@@ -102,10 +71,11 @@ class Model(object):
         """
         if self.__symbolic_equations is None:
             # drop one equation as a result of normalization
-            eqns = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
-                    [self.total_profits(h) for h in range(self.N)] +
-                    [self.labor_market_clearing(h) for h in range(self.N)] +
-                    [self.resource_constraint(h) for h in range(self.N)])
+            N = self.number_cities
+            eqns = ([self.goods_market_clearing(h) for h in range(1, N)] +
+                    [self.total_profits(h) for h in range(N)] +
+                    [self.labor_market_clearing(h) for h in range(N)] +
+                    [self.resource_constraint(h) for h in range(N)])
             self.__symbolic_equations = eqns
         return self.__symbolic_equations
 
@@ -143,12 +113,13 @@ class Model(object):
         :type: list
 
         """
+        N = self.number_cities
         if self.__symbolic_variables is None:
             # normalize P[0] = 1.0 (only P[1]...P[num_cities-1] are unknowns)
-            variables = ([nominal_price_level[h] for h in range(1, self.N)] +
-                         [nominal_gdp[h] for h in range(self.N)] +
-                         [nominal_wage[h] for h in range(self.N)] +
-                         [num_firms[h] for h in range(self.N)])
+            variables = ([nominal_price_level[h] for h in range(1, N)] +
+                         [nominal_gdp[h] for h in range(N)] +
+                         [nominal_wage[h] for h in range(N)] +
+                         [num_firms[h] for h in range(N)])
             self.__symbolic_variables = variables
         return self.__symbolic_variables
 
@@ -164,18 +135,7 @@ class Model(object):
         return np.exp(self.physical_distances)**tau
 
     @property
-    def effective_labor_supply(self):
-        """
-        Effective labor supply is a constant multple of total population.
-
-        :getter: Return the current effective labor supply.
-        :type: sympy.Matrix
-
-        """
-        return sym.Matrix([beta * self.population])
-
-    @property
-    def N(self):
+    def number_cities(self):
         """
         Number of cities in the economy.
 
@@ -184,12 +144,12 @@ class Model(object):
         :type: int
 
         """
-        return self._N
+        return self._number_cities
 
-    @N.setter
-    def N(self, value):
+    @number_cities.setter
+    def number_cities(self, value):
         """Set a new number of cities."""
-        self._N = self._validate_number_cities(value)
+        self._number_cities = self._validate_number_cities(value)
 
         # don't forget to clear cache!
         self._clear_cache()
@@ -204,7 +164,7 @@ class Model(object):
         :type: numpy.ndarray
 
         """
-        return self._physical_distances[:self.N, :self.N]
+        return self._physical_distances[:self.number_cities, :self.number_cities]
 
     @physical_distances.setter
     def physical_distances(self, array):
@@ -230,8 +190,6 @@ class Model(object):
 
     def _clear_cache(self):
         """Clear all cached values."""
-        self.__numeric_jacobian = None
-        self.__numeric_system = None
         self.__symbolic_equations = None
         self.__symbolic_jacobian = None
         self.__symbolic_system = None
@@ -239,12 +197,13 @@ class Model(object):
 
     @classmethod
     def _validate_number_cities(cls, value):
-        """Validate number of cities, N, attribute."""
+        """Validate number of cities attribute."""
         if not isinstance(value, int):
-            mesg = "Model.N attribute must have type int and not {}"
+            mesg = "Model.number_cities attribute must have type int, not {}"
             raise AttributeError(mesg.format(value.__class__))
         elif value < 1:
-            mesg = "Model.N attribute must be greater than or equal to 1."
+            mesg = ("Model.number_cities attribute must be greater than " +
+                    "or equal to 1.")
             raise AttributeError(mesg)
         else:
             return value
@@ -262,13 +221,17 @@ class Model(object):
         else:
             return params
 
+    def effective_labor_supply(self, h):
+        """Effective labor supply is a constant multple of total population."""
+        return beta * population[h]
+
     def goods_market_clearing(self, h):
         """Exports must balance imports for city h."""
         return self.total_exports(h) - self.total_imports(h)
 
     def labor_market_clearing(self, h):
         """Labor market clearing condition for city h."""
-        return self.effective_labor_supply[h] - self.total_labor_demand(h)
+        return self.effective_labor_supply(h) - self.total_labor_demand(h)
 
     def labor_productivity(self, h, j):
         """Productivity of labor in city h when producing good j."""
@@ -305,7 +268,7 @@ class Model(object):
     def resource_constraint(self, h):
         """Nominal GDP in city h must equal nominal income in city h."""
         constraint = (nominal_gdp[h] -
-                      self.effective_labor_supply[h] * nominal_wage[h])
+                      self.effective_labor_supply(h) * nominal_wage[h])
         return constraint
 
     @staticmethod
@@ -320,7 +283,7 @@ class Model(object):
     def total_exports(self, h):
         """Total exports of various goods from city h."""
         individual_exports = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             total_revenue_h = num_firms[h] * self.revenue(p_star, q_star)
@@ -341,7 +304,7 @@ class Model(object):
     def total_imports(self, h):
         """Total imports of various goods into city h."""
         individual_imports = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(j, h)
             q_star = self.quantity_demand(p_star, h)
             total_revenue_j = num_firms[j] * self.revenue(p_star, q_star)
@@ -362,7 +325,7 @@ class Model(object):
     def total_revenue(self, h):
         """Total revenue for a firm producing in city h."""
         individual_revenues = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             individual_revenues.append(self.revenue(p_star, q_star))
@@ -372,7 +335,7 @@ class Model(object):
     def total_variable_cost(self, h):
         """Total variable costs of production for a firm in city h."""
         individual_variable_costs = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             individual_variable_costs.append(self.variable_cost(q_star, h, j))
@@ -382,7 +345,7 @@ class Model(object):
     def total_variable_labor_demand(self, h):
         """Total variable labor demand for firms in city h."""
         individual_labor_demands = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             variable_demand_h = self.variable_labor_demand(q_star, h, j)
@@ -405,3 +368,193 @@ class Model(object):
 
         """
         return quantity / self.labor_productivity(h, j)
+
+
+class SingleCityModel(Model):
+
+    # initialize cached values
+    __numeric_gdp = None
+    __numeric_num_firms = None
+    __numeric_wage = None
+    __symbolic_solution = None
+
+    _modules = [{'ImmutableMatrix': np.array}, "numpy"]
+
+    def __init__(self, params, physical_distances, population):
+        """
+        Create an instance of the SingleCityModel class.
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary of model parameters.
+        physical_distances : numpy.ndarray (shape=(N,N))
+            Square array of pairwise measures pf physical distance between
+            cities.
+        population : numpy.ndarray (shape=(N,))
+            Array of total population for each city.
+
+        """
+        super(SingleCityModel, self).__init__(params, physical_distances, population)
+        self.number_cities = 1
+
+    @property
+    def solution(self):
+        """
+        Equilbrium values of nominal GDP, nominal wages, and number of firms.
+
+        :getter: Return current solution.
+        :type: numpy.ndarray
+
+        """
+        P0 = np.ones(1.0)
+        Y0 = self.compute_nominal_gdp(P0, self.population, self.params)
+        W0 = self.compute_nominal_wage(P0, self.population, self.params)
+        M0 = self.compute_number_firms(P0, self.population, self.params)
+
+        return np.hstack((Y0, W0, M0))
+
+    @property
+    def _numeric_gdp(self):
+        """
+        Vectorized function for evaluating solution for nominal GDP.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_gdp is None:
+            Y = nominal_gdp[0]
+            self.__numeric_gdp = sym.lambdify(self._symbolic_args,
+                                              self._symbolic_solution[Y],
+                                              self._modules)
+        return self.__numeric_gdp
+
+    @property
+    def _numeric_wage(self):
+        """
+        Vectorized function for evaluating solution for nominal wage.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_wage is None:
+            W = nominal_wage[0]
+            self.__numeric_wage = sym.lambdify(self._symbolic_args,
+                                               self._symbolic_solution[W],
+                                               self._modules)
+        return self.__numeric_wage
+
+    @property
+    def _numeric_num_firms(self):
+        """
+        Vectorized function for evaluating solution for number of firms.
+
+        :getter: Return the current function.
+        :type: function
+
+        """
+        if self.__numeric_num_firms is None:
+            M = num_firms[0]
+            self.__numeric_num_firms = sym.lambdify(self._symbolic_args,
+                                                    self._symbolic_solution[M],
+                                                    self._modules)
+        return self.__numeric_num_firms
+
+    @property
+    def _symbolic_args(self):
+        """
+        Arguments to pass to functions used for numeric evaluation of model.
+
+        :getter: Return the current arguments
+        :type: tuple
+
+        """
+        variables = (nominal_price_level, population)
+        params = (f, beta, phi, tau, elasticity_substitution)
+        return variables + params
+
+    @property
+    def _symbolic_solution(self):
+        """
+        Dictionary of symbolic expressions for analytic solution to the model.
+
+        :getter: Return the analytic solution to the model as a dictionary.
+        :type: dict
+
+        """
+        if self.__symbolic_solution is None:
+            self.__symbolic_solution, = sym.solve(self._symbolic_equations,
+                                                  self._symbolic_variables,
+                                                  dict=True)
+        return self.__symbolic_solution
+
+    def compute_nominal_gdp(self, price_level, population, params):
+        """
+        Compute equilibrium nominal GDP for the city given a price level and
+        some parameters.
+
+        Parameters
+        ----------
+        price_level : numpy.ndarray (shape=(1,))
+            Price level index for the city.
+        population : numpy.ndarray (shape=(1,))
+            Total population for the city.
+        params : dict
+            Dictionary of model parameters.
+
+        Returns
+        -------
+        nominal_gdp : float
+            Equilibrium nominal GDP for the city.
+
+        """
+        nominal_gdp = self._numeric_gdp(price_level, population, **params)
+        return nominal_gdp
+
+    def compute_nominal_wage(self, price_level, population, params):
+        """
+        Compute equilibrium nominal wage for the city given a price level and
+        some parameters.
+
+        Parameters
+        ----------
+        price_level : numpy.ndarray (shape=(1,))
+            Price level index for the city.
+        population : numpy.ndarray (shape=(1,))
+            Total population for the city.
+        params : dict
+            Dictionary of model parameters.
+
+        Returns
+        -------
+        nominal_wage : float
+            Equilibrium nominal wages for the city.
+
+        """
+        nominal_wage = self._numeric_wage(price_level, population, **params)
+        return nominal_wage
+
+    def compute_number_firms(self, price_level, population, params):
+        """
+        Compute equilibrium nominal number of firms for the city given a price
+        level and some parameters.
+
+        Parameters
+        ----------
+        price_level : numpy.ndarray (shape=(1,))
+            Price level index for the city.
+        population : numpy.ndarray (shape=(1,))
+            Total population for the city.
+        params : dict
+            Dictionary of model parameters.
+
+        Returns
+        -------
+        number_firms: float
+            Equilibrium number of firms.
+
+        """
+        number_firms = self._numeric_num_firms(price_level, population, **params)
+        return number_firms
