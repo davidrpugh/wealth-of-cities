@@ -43,20 +43,22 @@ def test_residual():
                                       'theta': np.array([elasticity])
                                       }
 
-                        tmp_model = Model(number_cities=1,
-                                          params=tmp_params,
+                        tmp_model = Model(params=tmp_params,
                                           physical_distances=physical_distances,
                                           population=population)
 
                         tmp_solver = solvers.Solver(tmp_model)
                         tmp_initial = solvers.IslandsGuess(tmp_model)
-                        tmp_initial.N = 1
+                        tmp_initial.number_cities = 1
 
+                        # conduct the test
                         expected_residual = np.zeros(3)
                         actual_residual = tmp_solver.system(tmp_initial.guess)
+
+                        mesg = "Model params: {}".format(tmp_params)
                         np.testing.assert_almost_equal(expected_residual,
                                                        actual_residual,
-                                                       verbose=True)
+                                                       err_msg=mesg)
 
 
 def test_balance_trade():
@@ -64,12 +66,12 @@ def test_balance_trade():
     # define some parameters
     params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
               'theta': np.repeat(10.0, 1)}
-    model = Model(number_cities=1,
-                  params=params,
+    model = Model(params=params,
                   physical_distances=physical_distances,
                   population=population)
+    model.number_cities = 1
 
-    for h in range(model.N):
+    for h in range(model.number_cities):
         actual_trade_balance = model.goods_market_clearing(h)
         expected_trade_balance = 0
 
@@ -85,19 +87,19 @@ def test_validate_num_cities():
                     'theta': np.repeat(10.0, 1)}
 
     with nose.tools.assert_raises(AttributeError):
-        Model(number_cities=invalid_num_cities,
-              params=valid_params,
-              physical_distances=physical_distances,
-              population=population)
+        model = Model(params=valid_params,
+                      physical_distances=physical_distances,
+                      population=population)
+        model.number_cities = invalid_num_cities
 
     # ...greater or equal to 1
     invalid_num_cities = 0
 
     with nose.tools.assert_raises(AttributeError):
-        Model(number_cities=invalid_num_cities,
-              params=valid_params,
-              physical_distances=physical_distances,
-              population=population)
+        model = Model(params=valid_params,
+                      physical_distances=physical_distances,
+                      population=population)
+        model.number_cities = invalid_num_cities
 
 
 def test_validate_params():
@@ -106,8 +108,7 @@ def test_validate_params():
     invalid_params = (1.0, 1.31, 1.0 / 1.31, 0.05, np.repeat(10.0, 1))
 
     with nose.tools.assert_raises(AttributeError):
-        Model(number_cities=10,
-              params=invalid_params,
+        Model(params=invalid_params,
               physical_distances=physical_distances,
               population=population)
 
@@ -116,7 +117,6 @@ def test_validate_params():
                       'theta': np.repeat(10.0, 1)}
 
     with nose.tools.assert_raises(AttributeError):
-        Model(number_cities=15,
-              params=invalid_params,
+        Model(params=invalid_params,
               physical_distances=physical_distances,
               population=population)

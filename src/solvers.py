@@ -54,7 +54,7 @@ class InitialGuess(object):
         raise NotImplementedError
 
     @property
-    def N(self):
+    def number_cities(self):
         """
         Number of cities in the economy.
 
@@ -63,24 +63,12 @@ class InitialGuess(object):
         :type: int
 
         """
-        return self._N
+        return self.model.number_cities
 
-    @N.setter
-    def N(self, value):
+    @number_cities.setter
+    def number_cities(self, value):
         """Set a new number of cities."""
-        self._N = self._validate_number_cities(value)
-
-    @classmethod
-    def _validate_number_cities(cls, value):
-        """Validate number of cities, N, attribute."""
-        if not isinstance(value, int):
-            mesg = "InitialGuess.N attribute must have type int and not {}"
-            raise AttributeError(mesg.format(value.__class__))
-        elif value < 1:
-            mesg = "InitialGuess.N attribute must be greater than or equal to 1."
-            raise AttributeError(mesg)
-        else:
-            return value
+        self.model.number_cities = value
 
 
 class IslandsGuess(InitialGuess):
@@ -95,14 +83,14 @@ class IslandsGuess(InitialGuess):
 
         """
         # initial guess for price levels
-        P0 = np.repeat(1.0, self.N-1)
+        P0 = np.repeat(1.0, self.number_cities-1)
 
         # initial guess for nominal gdp, wages, and number of firms
-        Y0 = np.empty(self.N)
-        W0 = np.empty(self.N)
-        M0 = np.empty(self.N)
+        Y0 = np.empty(self.number_cities)
+        W0 = np.empty(self.number_cities)
+        M0 = np.empty(self.number_cities)
 
-        for h, population in enumerate(self.city.population[:self.N]):
+        for h, population in enumerate(self.city.population[:self.number_cities]):
             Y0[h] = self.city.compute_nominal_gdp(np.ones(1.0),
                                                   np.array([population]),
                                                   self.city.params)
@@ -134,7 +122,7 @@ class HotStartGuess(InitialGuess):
         self.__model = self.model
         self.__solution = self.city.solution
 
-        for number_cities in range(1, self.N):
+        for number_cities in range(1, self.number_cities):
 
             # split the current solution
             P = self.__solution[:number_cities-1]
@@ -151,7 +139,7 @@ class HotStartGuess(InitialGuess):
                                               np.append(W, W0),
                                               np.append(M, M0)))
 
-            self.__model.N = number_cities + 1
+            self.__model.number_cities = number_cities + 1
             self.__solver = Solver(self.__model)
             self.__result = self.__solver.solve(self.__initial_guess,
                                                 **self.solver_kwargs)
@@ -254,10 +242,10 @@ class Solver(object):
             variables and parameters.
 
         """
-        P = np.append(np.ones(1.0), X[:self.model.N-1])
-        Y = X[self.model.N-1:2 * self.model.N-1]
-        W = X[2 * self.model.N-1:3 * self.model.N-1]
-        M = X[3 * self.model.N-1:]
+        P = np.append(np.ones(1.0), X[:self.model.number_cities-1])
+        Y = X[self.model.number_cities-1:2 * self.model.number_cities-1]
+        W = X[2 * self.model.number_cities-1:3 * self.model.number_cities-1]
+        M = X[3 * self.model.number_cities-1:]
         residual = self._numeric_system(P, Y, W, M,
                                         self.model.population,
                                         **self.model.params)
@@ -279,10 +267,10 @@ class Solver(object):
             Jacobian matrix of partial derivatives.
 
         """
-        P = np.append(np.ones(1.0), X[:self.model.N-1])
-        Y = X[self.model.N-1:2 * self.model.N-1]
-        W = X[2 * self.model.N-1:3 * self.model.N-1]
-        M = X[3 * self.model.N-1:]
+        P = np.append(np.ones(1.0), X[:self.model.number_cities-1])
+        Y = X[self.model.number_cities-1:2 * self.model.number_cities-1]
+        W = X[2 * self.model.number_cities-1:3 * self.model.number_cities-1]
+        M = X[3 * self.model.number_cities-1:]
 
         jac = self._numeric_jacobian(P, Y, W, M,
                                      self.model.population,

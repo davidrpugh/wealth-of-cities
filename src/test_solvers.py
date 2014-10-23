@@ -19,8 +19,7 @@ N = 380
 params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
           'theta': np.repeat(10.0, N)}
 
-model = models.Model(number_cities=N,
-                     params=params,
+model = models.Model(params=params,
                      physical_distances=physical_distances,
                      population=population)
 
@@ -29,11 +28,10 @@ def test_initial_guesses():
     """Compare results using IslandsGuess vs HotStartGuess."""
     # define some number of cities
     N = np.random.randint(1, 25)
-    model.N = N
 
     # create an initial guess
     islands = solvers.IslandsGuess(model)
-    islands.N = N
+    islands.number_cities = N
 
     solver = solvers.Solver(model)
     islands_result = solver.solve(islands.guess, method='hybr', tol=1e-12,
@@ -41,7 +39,7 @@ def test_initial_guesses():
 
     # create an initial guess
     hot_start = solvers.HotStartGuess(model)
-    hot_start.N = N
+    hot_start.number_cities = N
     hot_start.solver_kwargs = {'method': 'hybr',
                                'tol': 1e-12,
                                'with_jacobian': True}
@@ -54,12 +52,11 @@ def test_jacobians():
     """Testing results using finite difference and symbolic jacobians."""
     # define some number of cities
     N = np.random.randint(1, 25)
-    model.N = N
 
     # check that solutions are the same for approx and exact jacobian
     solver = solvers.Solver(model)
     initial_guess = solvers.IslandsGuess(model)
-    initial_guess.N = N
+    initial_guess.number_cities = N
     approx_jac = solver.solve(initial_guess.guess, method='hybr', tol=1e-12,
                               with_jacobian=False, options={'eps': 1e-15})
 
@@ -75,19 +72,3 @@ def test_not_implemented_methods():
     with nose.tools.assert_raises(NotImplementedError):
         initial = solvers.InitialGuess(model)
         initial.guess
-
-
-def test_validate_num_cities():
-    """Testing validation method for num_cities attribute."""
-
-    # number of cities must be an int...
-    invalid_num_cities = 10.0
-    with nose.tools.assert_raises(AttributeError):
-        initial = solvers.InitialGuess(model)
-        initial.N = invalid_num_cities
-
-    # ...greater or equal to 1
-    invalid_num_cities = 0
-    with nose.tools.assert_raises(AttributeError):
-        initial = solvers.InitialGuess(model)
-        initial.N = invalid_num_cities

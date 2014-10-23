@@ -28,14 +28,12 @@ class Model(object):
     __symbolic_system = None
     __symbolic_variables = None
 
-    def __init__(self, number_cities, params, physical_distances, population):
+    def __init__(self, params, physical_distances, population):
         """
         Create an instance of the Model class.
 
         Parameters
         ----------
-        number_cities : int
-            Number of cities in the economy.
         params : dict
             Dictionary of model parameters.
         physical_distances : numpy.ndarray (shape=(N,N))
@@ -45,7 +43,6 @@ class Model(object):
             Array of total population for each city.
 
         """
-        self.N = number_cities
         self.params = params
         self.physical_distances = physical_distances
         self.population = population
@@ -74,10 +71,11 @@ class Model(object):
         """
         if self.__symbolic_equations is None:
             # drop one equation as a result of normalization
-            eqns = ([self.goods_market_clearing(h) for h in range(1, self.N)] +
-                    [self.total_profits(h) for h in range(self.N)] +
-                    [self.labor_market_clearing(h) for h in range(self.N)] +
-                    [self.resource_constraint(h) for h in range(self.N)])
+            N = self.number_cities
+            eqns = ([self.goods_market_clearing(h) for h in range(1, N)] +
+                    [self.total_profits(h) for h in range(N)] +
+                    [self.labor_market_clearing(h) for h in range(N)] +
+                    [self.resource_constraint(h) for h in range(N)])
             self.__symbolic_equations = eqns
         return self.__symbolic_equations
 
@@ -115,12 +113,13 @@ class Model(object):
         :type: list
 
         """
+        N = self.number_cities
         if self.__symbolic_variables is None:
             # normalize P[0] = 1.0 (only P[1]...P[num_cities-1] are unknowns)
-            variables = ([nominal_price_level[h] for h in range(1, self.N)] +
-                         [nominal_gdp[h] for h in range(self.N)] +
-                         [nominal_wage[h] for h in range(self.N)] +
-                         [num_firms[h] for h in range(self.N)])
+            variables = ([nominal_price_level[h] for h in range(1, N)] +
+                         [nominal_gdp[h] for h in range(N)] +
+                         [nominal_wage[h] for h in range(N)] +
+                         [num_firms[h] for h in range(N)])
             self.__symbolic_variables = variables
         return self.__symbolic_variables
 
@@ -136,7 +135,7 @@ class Model(object):
         return np.exp(self.physical_distances)**tau
 
     @property
-    def N(self):
+    def number_cities(self):
         """
         Number of cities in the economy.
 
@@ -145,12 +144,12 @@ class Model(object):
         :type: int
 
         """
-        return self._N
+        return self._number_cities
 
-    @N.setter
-    def N(self, value):
+    @number_cities.setter
+    def number_cities(self, value):
         """Set a new number of cities."""
-        self._N = self._validate_number_cities(value)
+        self._number_cities = self._validate_number_cities(value)
 
         # don't forget to clear cache!
         self._clear_cache()
@@ -165,7 +164,7 @@ class Model(object):
         :type: numpy.ndarray
 
         """
-        return self._physical_distances[:self.N, :self.N]
+        return self._physical_distances[:self.number_cities, :self.number_cities]
 
     @physical_distances.setter
     def physical_distances(self, array):
@@ -198,12 +197,13 @@ class Model(object):
 
     @classmethod
     def _validate_number_cities(cls, value):
-        """Validate number of cities, N, attribute."""
+        """Validate number of cities attribute."""
         if not isinstance(value, int):
-            mesg = "Model.N attribute must have type int and not {}"
+            mesg = "Model.number_cities attribute must have type int, not {}"
             raise AttributeError(mesg.format(value.__class__))
         elif value < 1:
-            mesg = "Model.N attribute must be greater than or equal to 1."
+            mesg = ("Model.number_cities attribute must be greater than " +
+                    "or equal to 1.")
             raise AttributeError(mesg)
         else:
             return value
@@ -283,7 +283,7 @@ class Model(object):
     def total_exports(self, h):
         """Total exports of various goods from city h."""
         individual_exports = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             total_revenue_h = num_firms[h] * self.revenue(p_star, q_star)
@@ -304,7 +304,7 @@ class Model(object):
     def total_imports(self, h):
         """Total imports of various goods into city h."""
         individual_imports = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(j, h)
             q_star = self.quantity_demand(p_star, h)
             total_revenue_j = num_firms[j] * self.revenue(p_star, q_star)
@@ -325,7 +325,7 @@ class Model(object):
     def total_revenue(self, h):
         """Total revenue for a firm producing in city h."""
         individual_revenues = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             individual_revenues.append(self.revenue(p_star, q_star))
@@ -335,7 +335,7 @@ class Model(object):
     def total_variable_cost(self, h):
         """Total variable costs of production for a firm in city h."""
         individual_variable_costs = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             individual_variable_costs.append(self.variable_cost(q_star, h, j))
@@ -345,7 +345,7 @@ class Model(object):
     def total_variable_labor_demand(self, h):
         """Total variable labor demand for firms in city h."""
         individual_labor_demands = []
-        for j in range(self.N):
+        for j in range(self.number_cities):
             p_star = self.optimal_price(h, j)
             q_star = self.quantity_demand(p_star, j)
             variable_demand_h = self.variable_labor_demand(q_star, h, j)
@@ -395,7 +395,8 @@ class SingleCityModel(Model):
             Array of total population for each city.
 
         """
-        super(SingleCityModel, self).__init__(1, params, physical_distances, population)
+        super(SingleCityModel, self).__init__(params, physical_distances, population)
+        self.number_cities = 1
 
     @property
     def solution(self):
