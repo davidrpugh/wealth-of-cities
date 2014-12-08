@@ -248,7 +248,7 @@ class Solver(object):
         M = X[3 * self.model.number_cities-1:]
         residual = self._numeric_system(P, Y, W, M,
                                         self.model.population,
-                                        **self.model.params)
+                                        *self.model.params.values())
         return residual.ravel()
 
     def jacobian(self, X):
@@ -274,7 +274,7 @@ class Solver(object):
 
         jac = self._numeric_jacobian(P, Y, W, M,
                                      self.model.population,
-                                     **self.model.params)
+                                     *self.model.params.values())
 
         return jac
 

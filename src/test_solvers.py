@@ -14,20 +14,16 @@ raw_data = master_data.panel.minor_xs(2010)
 clean_data = raw_data.sort('GDP_MP', ascending=False).drop([998, 48260])
 population = clean_data['POP_MI'].values
 
-# define some parameters
-N = 380
-params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-          'theta': np.repeat(10.0, N)}
-
-model = models.Model(params=params,
-                     physical_distances=physical_distances,
-                     population=population)
-
 
 def test_initial_guesses():
     """Compare results using IslandsGuess vs HotStartGuess."""
-    # define some number of cities
+    # define a model
     N = np.random.randint(1, 25)
+    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+              'elasticity_substitution': np.repeat(10.0, N)}
+    model = models.Model(params=params,
+                         physical_distances=physical_distances,
+                         population=population)
 
     # create an initial guess
     islands = solvers.IslandsGuess(model)
@@ -52,6 +48,11 @@ def test_jacobians():
     """Testing results using finite difference and symbolic jacobians."""
     # define some number of cities
     N = np.random.randint(1, 25)
+    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+              'elasticity_substitution': np.repeat(10.0, N)}
+    model = models.Model(params=params,
+                         physical_distances=physical_distances,
+                         population=population)
 
     # check that solutions are the same for approx and exact jacobian
     solver = solvers.Solver(model)
@@ -69,6 +70,13 @@ def test_jacobians():
 
 def test_not_implemented_methods():
     """Testing unimplemented methods of InitialGuess class."""
+    N = np.random.randint(1, 25)
+    params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
+              'elasticity_substitution': np.repeat(10.0, N)}
+    model = models.Model(params=params,
+                         physical_distances=physical_distances,
+                         population=population)
+
     with nose.tools.assert_raises(NotImplementedError):
         initial = solvers.InitialGuess(model)
         initial.guess

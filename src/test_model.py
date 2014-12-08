@@ -40,7 +40,7 @@ def test_residual():
                                       'beta': scaling_factor,
                                       'phi': productivity,
                                       'tau': iceberg_cost,
-                                      'theta': np.array([elasticity])
+                                      'elasticity_substitution': np.array([elasticity])
                                       }
 
                         tmp_model = Model(params=tmp_params,
@@ -65,7 +65,7 @@ def test_balance_trade():
     """Testing that exports balance imports."""
     # define some parameters
     params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-              'theta': np.repeat(10.0, 1)}
+              'elasticity_substitution': np.repeat(10.0, 1)}
     model = Model(params=params,
                   physical_distances=physical_distances,
                   population=population)
@@ -84,7 +84,7 @@ def test_validate_num_cities():
     invalid_num_cities = 1.0
 
     valid_params = {'f': 1.0, 'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-                    'theta': np.repeat(10.0, 1)}
+                    'elasticity_substitution': np.repeat(10.0, 1)}
 
     with nose.tools.assert_raises(AttributeError):
         model = Model(params=valid_params,
@@ -114,7 +114,7 @@ def test_validate_params():
 
     # ...and provide values for all required params
     invalid_params = {'beta': 1.31, 'phi': 1.0 / 1.31, 'tau': 0.05,
-                      'theta': np.repeat(10.0, 1)}
+                      'elasticity_substitution': np.repeat(10.0, 1)}
 
     with nose.tools.assert_raises(AttributeError):
         Model(params=invalid_params,

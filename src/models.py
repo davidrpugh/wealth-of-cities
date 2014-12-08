@@ -56,9 +56,10 @@ class Model(object):
         :type: tuple
 
         """
-        variables = (nominal_price_level, nominal_gdp, nominal_wage, num_firms)
-        params = (population, f, beta, phi, tau, elasticity_substitution)
-        return variables + params
+        variables = [nominal_price_level, nominal_gdp, nominal_wage, num_firms]
+        data = [population]
+        params = [tau, beta, phi, elasticity_substitution, f]
+        return variables + data + params
 
     @property
     def _symbolic_equations(self):
@@ -471,9 +472,10 @@ class SingleCityModel(Model):
         :type: tuple
 
         """
-        variables = (nominal_price_level, population)
-        params = (f, beta, phi, tau, elasticity_substitution)
-        return variables + params
+        variables = [nominal_price_level]
+        data = [population]
+        params = [tau, beta, phi, elasticity_substitution, f]
+        return variables + data + params
 
     @property
     def _symbolic_solution(self):
@@ -510,7 +512,7 @@ class SingleCityModel(Model):
             Equilibrium nominal GDP for the city.
 
         """
-        nominal_gdp = self._numeric_gdp(price_level, population, **params)
+        nominal_gdp = self._numeric_gdp(price_level, population, *params.values())
         return nominal_gdp
 
     def compute_nominal_wage(self, price_level, population, params):
@@ -533,7 +535,7 @@ class SingleCityModel(Model):
             Equilibrium nominal wages for the city.
 
         """
-        nominal_wage = self._numeric_wage(price_level, population, **params)
+        nominal_wage = self._numeric_wage(price_level, population, *params.values())
         return nominal_wage
 
     def compute_number_firms(self, price_level, population, params):
@@ -556,5 +558,5 @@ class SingleCityModel(Model):
             Equilibrium number of firms.
 
         """
-        number_firms = self._numeric_num_firms(price_level, population, **params)
+        number_firms = self._numeric_num_firms(price_level, population, *params.values())
         return number_firms
